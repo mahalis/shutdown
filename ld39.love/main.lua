@@ -80,7 +80,7 @@ function love.update(dt)
 
 	playerVelocity = vMul(playerVelocity, 1 - PLAYER_DRAG * dt)
 
-	currentWorldOffset = currentWorldOffset + currentFallRate * dt
+	currentWorldOffset = math.max(-playerPosition.y, currentWorldOffset + currentFallRate * dt)
 	-- TODO: figure out how to make the world offset track the player
 	currentFallRate = currentFallRate + FALL_RATE_ACCELERATION * dt
 
