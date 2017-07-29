@@ -52,6 +52,7 @@ function love.load()
 	local pixelScale = love.window.getPixelScale()
 
 	youShader = love.graphics.newShader("creature.fsh")
+	thresholdShader = love.graphics.newShader("threshold.fsh")
 	blurShaderX = makeBlurShader(25, screenWidth, 1, 0)
 	blurShaderY = makeBlurShader(15, screenHeight, 0, 1)
 	
@@ -60,7 +61,7 @@ function love.load()
 
 	
 	
-	for i = 1, 2 do
+	for i = 1, 3 do
 		local canvas = love.graphics.newCanvas(screenWidth * pixelScale, screenHeight * pixelScale)
 		canvas:setWrap("clampzero", "clampzero")
 		canvases[i] = canvas
@@ -132,9 +133,16 @@ end
 
 function love.draw()
 
-	--local canvas = canvases[1]
-	love.graphics.setCanvas(canvases[1])
-		love.graphics.clear(0, 0, 0, 255)
+	-- post-processing path, so I don’t lose track:
+	-- everything drawn to canvas 1
+	-- canvas 1 drawn with threshold to canvas 2
+	-- canvas 2 drawn with X blur to canvas 3
+	-- canvas 3 drawn with Y blur to screen
+	-- canvas 1 drawn to screen
+
+	love.graphics.clear(0, 0, 0, 255)
+
+	setCanvasAndClear(canvases[1])
 
 		local pixelScale = love.window.getPixelScale()
 		love.graphics.scale(pixelScale)
@@ -202,18 +210,18 @@ function love.draw()
 
 		love.graphics.pop()
 
-	love.graphics.setCanvas(canvases[2])
-		love.graphics.clear(0, 0, 0, 255)
-		local oneOverScale = 1 / pixelScale
-		love.graphics.setBlendMode("alpha", "premultiplied")
-		love.graphics.setShader(blurShaderX)
+	love.graphics.setBlendMode("alpha", "premultiplied")
+	setCanvasAndClear(canvases[2])
+		love.graphics.setShader(thresholdShader)
 			drawCanvas(canvases[1])
-		love.graphics.setShader()
+	setCanvasAndClear(canvases[3])
+		love.graphics.setShader(blurShaderX)
+			drawCanvas(canvases[2])
 	love.graphics.setCanvas()
 
 	love.graphics.setBlendMode("add")
 	love.graphics.setShader(blurShaderY)
-		drawCanvas(canvases[2])
+		drawCanvas(canvases[3])
 	love.graphics.setShader()
 	
 	drawCanvas(canvases[1]) -- original unblurred one
@@ -230,6 +238,13 @@ end
 function drawCanvas(canvas)
 	local oneOverScale = 1 / love.window.getPixelScale()
 	love.graphics.draw(canvas, 0, 0, 0, oneOverScale, oneOverScale)
+end
+
+function setCanvasAndClear(canvas, shouldClear)
+	love.graphics.setCanvas(canvas)
+	if shouldClear ~= false then
+		love.graphics.clear(0, 0, 0, 255)
+	end
 end
 
 function love.keypressed(key)
