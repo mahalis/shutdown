@@ -5,8 +5,11 @@ local playerVelocity
 local currentFallRate
 local currentWorldOffset
 local currentPowerLevel
+local elapsedTime
+local nextFoodSpawnTime
+local extraFoodSpawnTime
 
-local BASE_FALL_RATE = 80
+local BASE_FALL_RATE = 100
 local FALL_RATE_ACCELERATION = 1
 local JUMP_SPEED = 600
 local PLAYER_DRAG = 1
@@ -15,7 +18,10 @@ local STARTING_POWER = 10
 local MAX_POWER = 20
 local POWER_PER_JUMP = 2
 local POWER_PER_FOOD = 5
-local POWER_DECAY = 0.5
+local POWER_DECAY = 0.8
+local BASE_FOOD_SPAWN_INTERVAL = 3
+local FOOD_SPAWN_VARIATION = 0.2
+local FOOD_SPAWN_INTERVAL_GROWTH = 0.1
 
 local POWER_BAR_WIDTH = 100
 
@@ -27,6 +33,7 @@ function love.load()
 	math.randomseed(os.time())
 
 	screenWidth, screenHeight = love.window.getMode()
+	elapsedTime = 0
 	setup()
 end
 
@@ -36,11 +43,15 @@ function setup()
 	playerPosition = v(0,0)
 	playerVelocity = v(0,0)
 	currentPowerLevel = 10
+	nextFoodSpawnTime = elapsedTime
+	extraFoodSpawnTime = 0
 
 	foods = {}
 end
 
 function love.update(dt)
+	elapsedTime = elapsedTime + dt
+
 	playerPosition = vAdd(playerPosition, vMul(playerVelocity, dt))
 
 	local halfWidth = screenWidth / 2
@@ -70,6 +81,13 @@ function love.update(dt)
 	currentFallRate = currentFallRate + FALL_RATE_ACCELERATION * dt
 
 	currentPowerLevel = currentPowerLevel - POWER_DECAY * dt
+	extraFoodSpawnTime = extraFoodSpawnTime + FOOD_SPAWN_INTERVAL_GROWTH * dt
+
+	if elapsedTime > nextFoodSpawnTime then
+		local delay = BASE_FOOD_SPAWN_INTERVAL + extraFoodSpawnTime
+		nextFoodSpawnTime = elapsedTime + delay * (1 + frand() * FOOD_SPAWN_VARIATION)
+		makeFood()
+	end
 end
 
 function love.draw()
@@ -102,7 +120,7 @@ function love.keypressed(key)
 			currentPowerLevel = currentPowerLevel - POWER_PER_JUMP
 		end
 	elseif key == "f" then
-		foods[#foods + 1] = makeFood()
+		makeFood()
 	end
 end
 
@@ -124,7 +142,7 @@ function makeFood()
 	local food = {}
 	food.speed = currentFallRate * frand() * MAX_FOOD_SPEED_VARIATION
 	food.position = v(frand() * screenWidth * 0.4, -screenHeight / 2 - currentWorldOffset)
-	return food
+	foods[#foods + 1] = food
 end
 
 function drawCenteredImage(image, x, y, scale, angle)
