@@ -4,12 +4,20 @@ local playerPosition
 local playerVelocity
 local currentFallRate
 local currentWorldOffset
+local currentPowerLevel
 
 local BASE_FALL_RATE = 80
 local FALL_RATE_ACCELERATION = 1
 local JUMP_SPEED = 600
 local PLAYER_DRAG = 1
 local MAX_FOOD_SPEED_VARIATION = 0.2 -- multiplier on current fall rate
+local STARTING_POWER = 10
+local MAX_POWER = 20
+local POWER_PER_JUMP = 2
+local POWER_PER_FOOD = 5
+local POWER_DECAY = 0.5
+
+local POWER_BAR_WIDTH = 100
 
 local foods = {}
 
@@ -27,6 +35,7 @@ function setup()
 	currentFallRate = BASE_FALL_RATE
 	playerPosition = v(0,0)
 	playerVelocity = v(0,0)
+	currentPowerLevel = 10
 
 	foods = {}
 end
@@ -43,21 +52,31 @@ function love.update(dt)
 		playerVelocity.x = -math.abs(playerVelocity.x)
 	end
 
+	local foodIndicesToRemove = {}
 	for i = 1, #foods do
 		local food = foods[i]
-		foods[i].y = food.y + food.speed * dt
+		foods[i].position.y = food.position.y + food.speed * dt
+
+		if vDist(playerPosition, foods[i].position) < 20 then
+			handleGotFood(i)
+			break
+		end
 	end
 
 	playerVelocity = vMul(playerVelocity, 1 - PLAYER_DRAG * dt)
 
 	currentWorldOffset = currentWorldOffset + currentFallRate * dt
+	-- TODO: figure out how to make the world offset track the player
 	currentFallRate = currentFallRate + FALL_RATE_ACCELERATION * dt
+
+	currentPowerLevel = currentPowerLevel - POWER_DECAY * dt
 end
 
 function love.draw()
 	local pixelScale = love.window.getPixelScale()
 	love.graphics.scale(pixelScale)
 
+	love.graphics.push()
 	love.graphics.translate(screenWidth / 2, screenHeight / 2 + currentWorldOffset)
 	
 	love.graphics.setColor(255, 255, 255, 255)
@@ -65,16 +84,23 @@ function love.draw()
 
 	love.graphics.setColor(120, 255, 40, 255)
 	for i = 1, #foods do
-		love.graphics.circle("fill", foods[i].x, foods[i].y, 10)
+		love.graphics.circle("fill", foods[i].position.x, foods[i].position.y, 10)
 	end
+
+	love.graphics.setColor(255, 255, 255, 255)
+	love.graphics.pop()
+	love.graphics.rectangle("line", 10, 10, POWER_BAR_WIDTH, 10)
+	love.graphics.rectangle("fill", 10, 10, POWER_BAR_WIDTH * (currentPowerLevel / MAX_POWER), 10)
 end
 
 function love.keypressed(key)
 	if key == "escape" then
 		love.event.quit()
 	elseif key == "space" then
-		playerVelocity = currentJumpVelocity()
-		-- TODO: subtract power
+		if currentPowerLevel > POWER_PER_JUMP then
+			playerVelocity = currentJumpVelocity()
+			currentPowerLevel = currentPowerLevel - POWER_PER_JUMP
+		end
 	elseif key == "f" then
 		foods[#foods + 1] = makeFood()
 	end
@@ -86,13 +112,18 @@ function currentJumpVelocity()
 end
 
 
+function handleGotFood(foodIndex)
+	local food = foods[foodIndex]
+	table.remove(foods, foodIndex)
+	currentPowerLevel = currentPowerLevel + POWER_PER_FOOD
+end
+
 -- Utility stuff
 
 function makeFood()
 	local food = {}
 	food.speed = currentFallRate * frand() * MAX_FOOD_SPEED_VARIATION
-	food.x = frand() * screenWidth * 0.4
-	food.y = -screenHeight / 2 - currentWorldOffset
+	food.position = v(frand() * screenWidth * 0.4, -screenHeight / 2 - currentWorldOffset)
 	return food
 end
 
