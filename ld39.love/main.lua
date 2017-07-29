@@ -3,7 +3,6 @@ require "vectors"
 local playerPosition
 local playerVelocity
 local currentFallRate
-local playerIsHoldingOn = true
 local currentWorldOffset
 
 local BASE_FALL_RATE = 80
@@ -58,6 +57,11 @@ function love.draw()
 	
 	love.graphics.setColor(255, 255, 255, 255)
 	love.graphics.circle("fill", playerPosition.x, playerPosition.y, 20)
+
+	love.graphics.setColor(120, 255, 40, 255)
+	for i = 1, #foods do
+		love.graphics.circle("fill", foods[i].x, foods[i].y, 10)
+	end
 end
 
 function love.keypressed(key)
@@ -66,6 +70,8 @@ function love.keypressed(key)
 	elseif key == "space" then
 		playerVelocity = currentJumpVelocity()
 		-- TODO: subtract power
+	elseif key == "f" then
+		foods[#foods + 1] = makeFood()
 	end
 end
 
@@ -81,7 +87,7 @@ function makeFood()
 	local food = {}
 	food.speedAdjustment = frand()
 	food.x = frand() * screenWidth * 0.4
-	-- TODO: figure out how Y shit works — should spawn offscreen, obviously
+	food.y = -screenHeight / 2 - currentWorldOffset
 	return food
 end
 
