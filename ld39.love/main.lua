@@ -44,22 +44,26 @@ local foodColorSchemes =  { { { 0.94, 0.05, 0.65 }, { 0.85, 0.15, 0.35 }, { 0.4,
 							{ { 0.6, 0.05, 0.93 }, { 0.4, 0.03, 0.95 }, { 0.1, 0.4, 0.9 } }, -- purple
 							{ { 0.05, 0.4, 0.95 }, { 0.3, 0.8, 0.6 }, { 0.05, 0.1, 0.9 } } } -- cyan
 local canvases = {}
-local thresholdShader, blurShader
+local thresholdShader, blurShaderX, blurShaderY
 
 function love.load()
 	math.randomseed(os.time())
 	screenWidth, screenHeight = love.window.getMode()
+	local pixelScale = love.window.getPixelScale()
 
 	youShader = love.graphics.newShader("creature.fsh")
-	blurShader = makeBlurShader(20, screenWidth)
+	blurShaderX = makeBlurShader(25, screenWidth, 1, 0)
+	blurShaderY = makeBlurShader(15, screenHeight, 0, 1)
 	
 	local quadVertices = {{-0.5, -0.5, 0, 0}, {0.5, -0.5, 1, 0}, {-0.5, 0.5, 0, 1}, {0.5, 0.5, 1, 1}}
 	quadMesh = love.graphics.newMesh(quadVertices, "strip", "static")
 
 	
-	local pixelScale = love.window.getPixelScale()
+	
 	for i = 1, 2 do
-		canvases[i] = love.graphics.newCanvas(screenWidth * pixelScale, screenHeight * pixelScale)
+		local canvas = love.graphics.newCanvas(screenWidth * pixelScale, screenHeight * pixelScale)
+		canvas:setWrap("clampzero", "clampzero")
+		canvases[i] = canvas
 	end
 	elapsedTime = 0
 	setup()
@@ -128,85 +132,91 @@ end
 
 function love.draw()
 
-	local canvas = canvases[1]
-	love.graphics.setCanvas(canvas)
-	love.graphics.clear(0, 0, 0, 255)
+	--local canvas = canvases[1]
+	love.graphics.setCanvas(canvases[1])
+		love.graphics.clear(0, 0, 0, 255)
 
-	local pixelScale = love.window.getPixelScale()
-	love.graphics.scale(pixelScale)
+		local pixelScale = love.window.getPixelScale()
+		love.graphics.scale(pixelScale)
 
-	love.graphics.push()
-
-	-- grid
-
-	local lineSpacing = 42
-	local lineShiftY = math.fmod(currentWorldOffset, lineSpacing)
-	love.graphics.setColor(255, 255, 255, 100)
-	for i = 0, math.ceil(screenHeight / lineSpacing) do
-		local lineY = i * lineSpacing + lineShiftY
-		love.graphics.line(0, lineY, screenWidth, lineY)
-	end
-	local lineShiftX = math.fmod(screenWidth, lineSpacing) / 2 -- center them
-	for i = 0, math.ceil(screenWidth / lineSpacing) do
-		local lineX = i * lineSpacing + lineShiftX
-		love.graphics.line(lineX, 0, lineX, screenHeight)
-	end
-	
-
-	love.graphics.translate(screenWidth / 2, screenHeight / 2 + currentWorldOffset)
-
-	love.graphics.setBlendMode("add") -- everything glowy should be additive, duh
-	
-	-- player
-
-	love.graphics.setColor(255, 255, 255, 255)
-	love.graphics.push()
-	love.graphics.translate(playerPosition.x, playerPosition.y)
-	love.graphics.scale(PLAYER_SIZE)
-	love.graphics.rotate(elapsedTime * 0.6)
-	love.graphics.setShader(youShader)
-	youShader:send("iGlobalTime", elapsedTime)
-	youShader:send("color1", {0.05, 0.94, 0.58})
-	youShader:send("color2", {0.03, 0.47, 0.93})
-	youShader:send("color3", {0.4, 0.15, 0.95})
-	youShader:send("sides", 3)
-	love.graphics.draw(quadMesh)
-	love.graphics.setShader()
-
-	love.graphics.pop()
-
-	-- foods
-
-	love.graphics.setShader(youShader)
-	for i = 1, #foods do
-		local food = foods[i]
 		love.graphics.push()
-		love.graphics.translate(food.position.x, food.position.y)
-		love.graphics.scale(FOOD_SIZE)
-		love.graphics.rotate(elapsedTime * 0.53)
 
-		youShader:send("sides", food.sideCount)
-		local scheme = foodColorSchemes[food.colorSchemeIndex]
-		youShader:send("iGlobalTime", elapsedTime + food.timeOffset)
-		youShader:send("color1", scheme[1])
-		youShader:send("color2", scheme[2])
-		youShader:send("color3", scheme[3])
-		love.graphics.draw(quadMesh)
+			-- grid
+
+			local lineSpacing = 42
+			local lineShiftY = math.fmod(currentWorldOffset, lineSpacing)
+			love.graphics.setColor(255, 255, 255, 60)
+			for i = 0, math.ceil(screenHeight / lineSpacing) do
+				local lineY = i * lineSpacing + lineShiftY
+				love.graphics.line(0, lineY, screenWidth, lineY)
+			end
+			local lineShiftX = math.fmod(screenWidth, lineSpacing) / 2 -- center them
+			for i = 0, math.ceil(screenWidth / lineSpacing) do
+				local lineX = i * lineSpacing + lineShiftX
+				love.graphics.line(lineX, 0, lineX, screenHeight)
+			end
+			
+
+			love.graphics.translate(screenWidth / 2, screenHeight / 2 + currentWorldOffset)
+
+			love.graphics.setBlendMode("add") -- everything glowy should be additive, duh
+			
+			-- player
+
+			love.graphics.setColor(255, 255, 255, 255)
+			love.graphics.push()
+				love.graphics.translate(playerPosition.x, playerPosition.y)
+				love.graphics.scale(PLAYER_SIZE)
+				love.graphics.rotate(elapsedTime * 0.6)
+
+				love.graphics.setShader(youShader)
+					youShader:send("iGlobalTime", elapsedTime)
+					youShader:send("color1", {0.05, 0.94, 0.58})
+					youShader:send("color2", {0.03, 0.47, 0.93})
+					youShader:send("color3", {0.4, 0.15, 0.95})
+					youShader:send("sides", 3)
+					love.graphics.draw(quadMesh)
+				love.graphics.setShader()
+			love.graphics.pop()
+
+			-- foods
+
+			love.graphics.setShader(youShader)
+			for i = 1, #foods do
+				local food = foods[i]
+				love.graphics.push()
+				love.graphics.translate(food.position.x, food.position.y)
+				love.graphics.scale(FOOD_SIZE)
+				love.graphics.rotate(elapsedTime * 0.53)
+
+				youShader:send("sides", food.sideCount)
+				local scheme = foodColorSchemes[food.colorSchemeIndex]
+				youShader:send("iGlobalTime", elapsedTime + food.timeOffset)
+				youShader:send("color1", scheme[1])
+				youShader:send("color2", scheme[2])
+				youShader:send("color3", scheme[3])
+				love.graphics.draw(quadMesh)
+				love.graphics.pop()
+			end
+			love.graphics.setShader()
+
 		love.graphics.pop()
-	end
-	love.graphics.setShader()
 
-	love.graphics.pop()
-
+	love.graphics.setCanvas(canvases[2])
+		love.graphics.clear(0, 0, 0, 255)
+		local oneOverScale = 1 / pixelScale
+		love.graphics.setBlendMode("alpha", "premultiplied")
+		love.graphics.setShader(blurShaderX)
+			drawCanvas(canvases[1])
+		love.graphics.setShader()
 	love.graphics.setCanvas()
 
-	local oneOverScale = 1 / pixelScale
-
-	love.graphics.setShader(blurShader)
-	blurShader:send("direction", {1, 0})
-	love.graphics.draw(canvases[1], 0, 0, 0, oneOverScale, oneOverScale)
+	love.graphics.setBlendMode("add")
+	love.graphics.setShader(blurShaderY)
+		drawCanvas(canvases[2])
 	love.graphics.setShader()
-	love.graphics.draw(canvases[1], 0, 0, 0, oneOverScale, oneOverScale)
+	
+	drawCanvas(canvases[1]) -- original unblurred one
 
 	love.graphics.setBlendMode("alpha")
 
@@ -215,6 +225,11 @@ function love.draw()
 	love.graphics.setColor(255, 255, 255, 255)
 	love.graphics.rectangle("line", 10, 10, POWER_BAR_WIDTH, 10)
 	love.graphics.rectangle("fill", 10, 10, POWER_BAR_WIDTH * (currentPowerLevel / MAX_POWER), 10)
+end
+
+function drawCanvas(canvas)
+	local oneOverScale = 1 / love.window.getPixelScale()
+	love.graphics.draw(canvas, 0, 0, 0, oneOverScale, oneOverScale)
 end
 
 function love.keypressed(key)
