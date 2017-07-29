@@ -9,7 +9,7 @@ local BASE_FALL_RATE = 80
 local FALL_RATE_ACCELERATION = 1
 local JUMP_SPEED = 600
 local PLAYER_DRAG = 1
-local MAX_FOOD_SPEED_VARIATION = 0.5 -- multiplier on current fall rate
+local MAX_FOOD_SPEED_VARIATION = 0.2 -- multiplier on current fall rate
 
 local foods = {}
 
@@ -41,6 +41,11 @@ function love.update(dt)
 	elseif playerPosition.x > halfWidth then
 		playerPosition.x = halfWidth - 1
 		playerVelocity.x = -math.abs(playerVelocity.x)
+	end
+
+	for i = 1, #foods do
+		local food = foods[i]
+		foods[i].y = food.y + food.speed * dt
 	end
 
 	playerVelocity = vMul(playerVelocity, 1 - PLAYER_DRAG * dt)
@@ -85,7 +90,7 @@ end
 
 function makeFood()
 	local food = {}
-	food.speedAdjustment = frand()
+	food.speed = currentFallRate * frand() * MAX_FOOD_SPEED_VARIATION
 	food.x = frand() * screenWidth * 0.4
 	food.y = -screenHeight / 2 - currentWorldOffset
 	return food
