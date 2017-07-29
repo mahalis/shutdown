@@ -4,6 +4,7 @@ local playerPosition
 local playerVelocity
 local currentFallRate
 local playerIsHoldingOn = true
+local currentWorldOffset
 
 local BASE_FALL_RATE = 80
 local FALL_RATE_ACCELERATION = 1
@@ -23,6 +24,7 @@ function love.load()
 end
 
 function setup()
+	currentWorldOffset = 0
 	currentFallRate = BASE_FALL_RATE
 	playerPosition = v(0,0)
 	playerVelocity = v(0,0)
@@ -31,8 +33,7 @@ function setup()
 end
 
 function love.update(dt)
-	local totalVelocity = vMul(vAdd(playerVelocity, v(0, currentFallRate)), dt)
-	playerPosition = vAdd(playerPosition, totalVelocity)
+	playerPosition = vAdd(playerPosition, vMul(playerVelocity, dt))
 
 	local halfWidth = screenWidth / 2
 	if playerPosition.x < -halfWidth then
@@ -44,6 +45,8 @@ function love.update(dt)
 	end
 
 	playerVelocity = vMul(playerVelocity, 1 - PLAYER_DRAG * dt)
+
+	currentWorldOffset = currentWorldOffset + currentFallRate * dt
 	currentFallRate = currentFallRate + FALL_RATE_ACCELERATION * dt
 end
 
@@ -51,7 +54,7 @@ function love.draw()
 	local pixelScale = love.window.getPixelScale()
 	love.graphics.scale(pixelScale)
 
-	love.graphics.translate(screenWidth / 2, screenHeight / 2)
+	love.graphics.translate(screenWidth / 2, screenHeight / 2 + currentWorldOffset)
 	
 	love.graphics.setColor(255, 255, 255, 255)
 	love.graphics.circle("fill", playerPosition.x, playerPosition.y, 20)
@@ -93,7 +96,7 @@ function mouseScreenPosition()
 	local pixelScale = love.window.getPixelScale()
 	local mouseX, mouseY = love.mouse.getPosition()
 	mouseX = (mouseX / pixelScale - screenWidth / 2)
-	mouseY = (mouseY / pixelScale - screenHeight / 2)
+	mouseY = (mouseY / pixelScale - (screenHeight / 2 + currentWorldOffset))
 	return v(mouseX, mouseY)
 end
 
