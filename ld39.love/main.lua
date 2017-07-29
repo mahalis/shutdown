@@ -10,21 +10,22 @@ local elapsedTime
 local nextFoodSpawnTime
 local extraFoodSpawnTime
 
-local BASE_FALL_RATE = 40
-local FALL_RATE_ACCELERATION = 1
+local BASE_FALL_RATE = 60
+local FALL_RATE_ACCELERATION = 2
 local JUMP_SPEED = 600
 local PLAYER_DRAG = 1
 local FOOD_Y_SPEED_VARIATION = 0.5 -- multiplier on current fall rate
-local BASE_FOOD_X_SPEED = 60
+local SIDE_FOOD_BASE_X_SPEED = 60
 local FOOD_X_SPEED_VARIATION = 0.3
+local TOP_FOOD_X_SPEED_MAX = 40
 
 local STARTING_POWER = 10
 local MAX_POWER = 20
-local POWER_PER_JUMP = 2
-local POWER_PER_FOOD = 4
-local POWER_DECAY = 0.8
+local POWER_PER_JUMP = 3
+local POWER_PER_FOOD = 5
+local POWER_DECAY = 1.2
 
-local BASE_FOOD_SPAWN_INTERVAL = 0.6
+local BASE_FOOD_SPAWN_INTERVAL = 0.8
 local FOOD_SPAWN_VARIATION = 0.2
 local FOOD_SPAWN_INTERVAL_GROWTH = 0
 
@@ -118,7 +119,7 @@ function love.update(dt)
 	playerVelocity = vMul(playerVelocity, 1 - PLAYER_DRAG * dt)
 
 	currentWorldOffset = math.max(-playerPosition.y + screenHeight * 0.3, currentWorldOffset + currentFallRate * dt)
-	-- TODO: figure out how to make the world offset track the player
+	
 	currentFallRate = currentFallRate + FALL_RATE_ACCELERATION * dt
 
 	currentPowerLevel = currentPowerLevel - POWER_DECAY * dt
@@ -215,11 +216,13 @@ function love.draw()
 		love.graphics.setShader(thresholdShader)
 			drawCanvas(canvases[1])
 	setCanvasAndClear(canvases[3])
+		love.graphics.setColor(200, 220, 255, 255)
 		love.graphics.setShader(blurShaderX)
 			drawCanvas(canvases[2])
 	love.graphics.setCanvas()
 
 	love.graphics.setBlendMode("add")
+	love.graphics.setColor(255, 255, 255, 255)
 	love.graphics.setShader(blurShaderY)
 		drawCanvas(canvases[3])
 	love.graphics.setShader()
@@ -232,7 +235,7 @@ function love.draw()
 
 	love.graphics.setColor(255, 255, 255, 255)
 	love.graphics.rectangle("line", 10, 10, POWER_BAR_WIDTH, 10)
-	love.graphics.rectangle("fill", 10, 10, POWER_BAR_WIDTH * (currentPowerLevel / MAX_POWER), 10)
+	love.graphics.rectangle("fill", 10, 10, POWER_BAR_WIDTH * math.max(0, currentPowerLevel / MAX_POWER), 10)
 end
 
 function drawCanvas(canvas)
@@ -276,10 +279,20 @@ end
 
 function makeFood()
 	local food = {}
+	local direction = math.random(3)
+	if direction == 1 then -- top of screen
+		local y = -screenHeight * 0.55 - currentWorldOffset
+		local x = frand() * screenWidth / 2
+		food.position = v(x, y)
+		food.velocity = v(frand() * TOP_FOOD_X_SPEED_MAX, currentFallRate * frand() * FOOD_Y_SPEED_VARIATION)
+	else
+		local leftSide = (direction == 2) and true or false
+		food.velocity = v(SIDE_FOOD_BASE_X_SPEED * (1 + frand() * FOOD_X_SPEED_VARIATION) * (leftSide and 1 or -1), currentFallRate * (frand() - 1) * FOOD_Y_SPEED_VARIATION)
+		local y = playerPosition.y - (1 - math.pow(math.random(), 2)) * screenHeight
+		food.position = v((leftSide and -1 or 1) * screenWidth * 0.55, y)	
+	end
 	local leftSide = (frand() > 0) and true or false
-	food.velocity = v(BASE_FOOD_X_SPEED * (1 + frand() * FOOD_X_SPEED_VARIATION) * (leftSide and 1 or -1), currentFallRate * (frand() - 1) * FOOD_Y_SPEED_VARIATION)
-	local y = playerPosition.y - (1 - math.pow(math.random(), 2)) * screenHeight
-	food.position = v((leftSide and -1 or 1) * screenWidth * 0.55, y)
+	
 	food.colorSchemeIndex = math.random(#foodColorSchemes)
 	food.sideCount = math.random(4, 7)
 	food.timeOffset = math.random() * 10
