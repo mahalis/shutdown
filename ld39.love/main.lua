@@ -95,18 +95,44 @@ function love.draw()
 	love.graphics.scale(pixelScale)
 
 	love.graphics.push()
+
+	-- grid
+
+	local lineSpacing = 42
+	local lineShiftY = math.fmod(currentWorldOffset, lineSpacing)
+	love.graphics.setColor(255, 255, 255, 100)
+	for i = 0, math.ceil(screenHeight / lineSpacing) do
+		local lineY = i * lineSpacing + lineShiftY
+		love.graphics.line(0, lineY, screenWidth, lineY)
+	end
+	local lineShiftX = math.fmod(screenWidth, lineSpacing) / 2 -- center them
+	for i = 0, math.ceil(screenWidth / lineSpacing) do
+		local lineX = i * lineSpacing + lineShiftX
+		love.graphics.line(lineX, 0, lineX, screenHeight)
+	end
+	
+
 	love.graphics.translate(screenWidth / 2, screenHeight / 2 + currentWorldOffset)
 	
+	-- player
+
 	love.graphics.setColor(255, 255, 255, 255)
 	love.graphics.circle("fill", playerPosition.x, playerPosition.y, 20)
+
+	-- foods
 
 	love.graphics.setColor(120, 255, 40, 255)
 	for i = 1, #foods do
 		love.graphics.circle("fill", foods[i].position.x, foods[i].position.y, 10)
 	end
 
-	love.graphics.setColor(255, 255, 255, 255)
+
 	love.graphics.pop()
+
+
+	-- UI
+
+	love.graphics.setColor(255, 255, 255, 255)
 	love.graphics.rectangle("line", 10, 10, POWER_BAR_WIDTH, 10)
 	love.graphics.rectangle("fill", 10, 10, POWER_BAR_WIDTH * (currentPowerLevel / MAX_POWER), 10)
 end
@@ -120,7 +146,7 @@ function love.keypressed(key)
 			currentPowerLevel = currentPowerLevel - POWER_PER_JUMP
 		end
 	elseif key == "f" then
-		makeFood()
+		makeFood() -- TODO: remember to remove this before release (i.e., don’t be an idiot)
 	end
 end
 
