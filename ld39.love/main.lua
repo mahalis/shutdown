@@ -67,20 +67,28 @@ function love.update(dt)
 		playerVelocity.x = -math.abs(playerVelocity.x)
 	end
 
-	local foodIndicesToRemove = {}
 	for i = 1, #foods do
 		local food = foods[i]
 		foods[i].position = vAdd(food.position, vMul(food.velocity, dt))
 
+		-- for both of the below, it’s possible for us to miss events if they happen in the same frame
+		-- they’ll get caught in the next one, though, so that doesn’t matter
+		-- the accounting to keep track of multiple indices is not hard, I just don’t feel like doing it
+
 		if vDist(playerPosition, foods[i].position) < 30 then
 			handleGotFood(i)
+			break
+		end
+
+		if math.abs(food.position.x) > screenWidth * 0.6 then
+			table.remove(foods, i)
 			break
 		end
 	end
 
 	playerVelocity = vMul(playerVelocity, 1 - PLAYER_DRAG * dt)
 
-	currentWorldOffset = math.max(-playerPosition.y, currentWorldOffset + currentFallRate * dt)
+	currentWorldOffset = math.max(-playerPosition.y + screenHeight * 0.3, currentWorldOffset + currentFallRate * dt)
 	-- TODO: figure out how to make the world offset track the player
 	currentFallRate = currentFallRate + FALL_RATE_ACCELERATION * dt
 
@@ -172,7 +180,7 @@ function makeFood()
 	local food = {}
 	local leftSide = (frand() > 0) and true or false
 	food.velocity = v(BASE_FOOD_X_SPEED * (1 + frand() * FOOD_X_SPEED_VARIATION) * (leftSide and 1 or -1), currentFallRate * (frand() - 1) * FOOD_Y_SPEED_VARIATION)
-	local y = playerPosition.y - math.random() * screenHeight / 2
+	local y = playerPosition.y - (1 - math.pow(math.random(), 2)) * screenHeight
 	food.position = v((leftSide and -1 or 1) * screenWidth * 0.52, y)
 	foods[#foods + 1] = food
 end
