@@ -1,4 +1,5 @@
 require "vectors"
+require "pp"
 
 local playerPosition
 local playerVelocity
@@ -42,16 +43,24 @@ local foodColorSchemes =  { { { 0.94, 0.05, 0.65 }, { 0.85, 0.15, 0.35 }, { 0.4,
 							{ { 0.2, 0.05, 0.95 }, { 0.4, 0.05, 0.9 }, { 0.25, 0.6, 0.93 } }, -- blue
 							{ { 0.6, 0.05, 0.93 }, { 0.4, 0.03, 0.95 }, { 0.1, 0.4, 0.9 } }, -- purple
 							{ { 0.05, 0.4, 0.95 }, { 0.3, 0.8, 0.6 }, { 0.05, 0.1, 0.9 } } } -- cyan
+local canvases = {}
+local thresholdShader, blurShader
 
 function love.load()
 	math.randomseed(os.time())
+	screenWidth, screenHeight = love.window.getMode()
 
 	youShader = love.graphics.newShader("creature.fsh")
+	blurShader = makeBlurShader(20, screenWidth)
 	
 	local quadVertices = {{-0.5, -0.5, 0, 0}, {0.5, -0.5, 1, 0}, {-0.5, 0.5, 0, 1}, {0.5, 0.5, 1, 1}}
 	quadMesh = love.graphics.newMesh(quadVertices, "strip", "static")
 
-	screenWidth, screenHeight = love.window.getMode()
+	
+	local pixelScale = love.window.getPixelScale()
+	for i = 1, 2 do
+		canvases[i] = love.graphics.newCanvas(screenWidth * pixelScale, screenHeight * pixelScale)
+	end
 	elapsedTime = 0
 	setup()
 end
@@ -118,6 +127,11 @@ function love.update(dt)
 end
 
 function love.draw()
+
+	local canvas = canvases[1]
+	love.graphics.setCanvas(canvas)
+	love.graphics.clear(0, 0, 0, 255)
+
 	local pixelScale = love.window.getPixelScale()
 	love.graphics.scale(pixelScale)
 
@@ -182,8 +196,17 @@ function love.draw()
 	end
 	love.graphics.setShader()
 
-
 	love.graphics.pop()
+
+	love.graphics.setCanvas()
+
+	local oneOverScale = 1 / pixelScale
+
+	love.graphics.setShader(blurShader)
+	blurShader:send("direction", {1, 0})
+	love.graphics.draw(canvases[1], 0, 0, 0, oneOverScale, oneOverScale)
+	love.graphics.setShader()
+	love.graphics.draw(canvases[1], 0, 0, 0, oneOverScale, oneOverScale)
 
 	love.graphics.setBlendMode("alpha")
 
