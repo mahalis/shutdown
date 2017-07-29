@@ -13,19 +13,19 @@ local BASE_FALL_RATE = 40
 local FALL_RATE_ACCELERATION = 1
 local JUMP_SPEED = 600
 local PLAYER_DRAG = 1
-local FOOD_Y_SPEED_VARIATION = 0.1 -- multiplier on current fall rate
+local FOOD_Y_SPEED_VARIATION = 0.5 -- multiplier on current fall rate
 local BASE_FOOD_X_SPEED = 60
 local FOOD_X_SPEED_VARIATION = 0.3
 
 local STARTING_POWER = 10
 local MAX_POWER = 20
 local POWER_PER_JUMP = 2
-local POWER_PER_FOOD = 5
+local POWER_PER_FOOD = 4
 local POWER_DECAY = 0.8
 
-local BASE_FOOD_SPAWN_INTERVAL = 1
+local BASE_FOOD_SPAWN_INTERVAL = 0.6
 local FOOD_SPAWN_VARIATION = 0.2
-local FOOD_SPAWN_INTERVAL_GROWTH = 0.05
+local FOOD_SPAWN_INTERVAL_GROWTH = 0
 
 local POWER_BAR_WIDTH = 100
 
@@ -38,11 +38,15 @@ local screenWidth, screenHeight
 
 local youShader
 local quadMesh
+local foodColorSchemes =  { { { 0.94, 0.05, 0.65 }, { 0.85, 0.15, 0.35 }, { 0.4, 0.15, 0.95 } }, -- pink
+							{ { 0.2, 0.05, 0.95 }, { 0.4, 0.05, 0.9 }, { 0.25, 0.6, 0.93 } }, -- blue
+							{ { 0.6, 0.05, 0.93 }, { 0.4, 0.03, 0.95 }, { 0.1, 0.4, 0.9 } }, -- purple
+							{ { 0.05, 0.4, 0.95 }, { 0.3, 0.8, 0.6 }, { 0.05, 0.1, 0.9 } } } -- cyan
 
 function love.load()
 	math.randomseed(os.time())
 
-	youShader = love.graphics.newShader("you.fsh")
+	youShader = love.graphics.newShader("creature.fsh")
 	
 	local quadVertices = {{-0.5, -0.5, 0, 0}, {0.5, -0.5, 1, 0}, {-0.5, 0.5, 0, 1}, {0.5, 0.5, 1, 1}}
 	quadMesh = love.graphics.newMesh(quadVertices, "strip", "static")
@@ -91,7 +95,7 @@ function love.update(dt)
 			break
 		end
 
-		if math.abs(food.position.x) > screenWidth * 0.6 then
+		if math.abs(food.position.x) > screenWidth * 0.7 then
 			table.remove(foods, i)
 			break
 		end
@@ -144,10 +148,14 @@ function love.draw()
 	love.graphics.setColor(255, 255, 255, 255)
 	love.graphics.push()
 	love.graphics.translate(playerPosition.x, playerPosition.y)
-	love.graphics.scale(90)
+	love.graphics.scale(PLAYER_SIZE)
 	love.graphics.rotate(elapsedTime * 0.6)
 	love.graphics.setShader(youShader)
 	youShader:send("iGlobalTime", elapsedTime)
+	youShader:send("color1", {0.05, 0.94, 0.58})
+	youShader:send("color2", {0.03, 0.47, 0.93})
+	youShader:send("color3", {0.4, 0.15, 0.95})
+	youShader:send("sides", 3)
 	love.graphics.draw(quadMesh)
 	love.graphics.setShader()
 
@@ -155,10 +163,24 @@ function love.draw()
 
 	-- foods
 
-	love.graphics.setColor(120, 255, 40, 255)
+	love.graphics.setShader(youShader)
 	for i = 1, #foods do
-		love.graphics.circle("fill", foods[i].position.x, foods[i].position.y, FOOD_SIZE / 2)
+		local food = foods[i]
+		love.graphics.push()
+		love.graphics.translate(food.position.x, food.position.y)
+		love.graphics.scale(FOOD_SIZE)
+		love.graphics.rotate(elapsedTime * 0.53)
+
+		youShader:send("sides", food.sideCount)
+		local scheme = foodColorSchemes[food.colorSchemeIndex]
+		youShader:send("iGlobalTime", elapsedTime + food.timeOffset)
+		youShader:send("color1", scheme[1])
+		youShader:send("color2", scheme[2])
+		youShader:send("color3", scheme[3])
+		love.graphics.draw(quadMesh)
+		love.graphics.pop()
 	end
+	love.graphics.setShader()
 
 
 	love.graphics.pop()
@@ -204,7 +226,10 @@ function makeFood()
 	local leftSide = (frand() > 0) and true or false
 	food.velocity = v(BASE_FOOD_X_SPEED * (1 + frand() * FOOD_X_SPEED_VARIATION) * (leftSide and 1 or -1), currentFallRate * (frand() - 1) * FOOD_Y_SPEED_VARIATION)
 	local y = playerPosition.y - (1 - math.pow(math.random(), 2)) * screenHeight
-	food.position = v((leftSide and -1 or 1) * screenWidth * 0.52, y)
+	food.position = v((leftSide and -1 or 1) * screenWidth * 0.55, y)
+	food.colorSchemeIndex = math.random(#foodColorSchemes)
+	food.sideCount = math.random(4, 7)
+	food.timeOffset = math.random() * 10
 	foods[#foods + 1] = food
 end
 
