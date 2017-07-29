@@ -9,19 +9,23 @@ local elapsedTime
 local nextFoodSpawnTime
 local extraFoodSpawnTime
 
-local BASE_FALL_RATE = 100
+local BASE_FALL_RATE = 40
 local FALL_RATE_ACCELERATION = 1
 local JUMP_SPEED = 600
 local PLAYER_DRAG = 1
-local MAX_FOOD_SPEED_VARIATION = 0.2 -- multiplier on current fall rate
+local FOOD_Y_SPEED_VARIATION = 0.1 -- multiplier on current fall rate
+local BASE_FOOD_X_SPEED = 60
+local FOOD_X_SPEED_VARIATION = 0.3
+
 local STARTING_POWER = 10
 local MAX_POWER = 20
 local POWER_PER_JUMP = 2
 local POWER_PER_FOOD = 5
 local POWER_DECAY = 0.8
-local BASE_FOOD_SPAWN_INTERVAL = 3
+
+local BASE_FOOD_SPAWN_INTERVAL = 1
 local FOOD_SPAWN_VARIATION = 0.2
-local FOOD_SPAWN_INTERVAL_GROWTH = 0.1
+local FOOD_SPAWN_INTERVAL_GROWTH = 0.05
 
 local POWER_BAR_WIDTH = 100
 
@@ -42,7 +46,7 @@ function setup()
 	currentFallRate = BASE_FALL_RATE
 	playerPosition = v(0,0)
 	playerVelocity = v(0,0)
-	currentPowerLevel = 10
+	currentPowerLevel = MAX_POWER
 	nextFoodSpawnTime = elapsedTime
 	extraFoodSpawnTime = 0
 
@@ -66,9 +70,9 @@ function love.update(dt)
 	local foodIndicesToRemove = {}
 	for i = 1, #foods do
 		local food = foods[i]
-		foods[i].position.y = food.position.y + food.speed * dt
+		foods[i].position = vAdd(food.position, vMul(food.velocity, dt))
 
-		if vDist(playerPosition, foods[i].position) < 20 then
+		if vDist(playerPosition, foods[i].position) < 30 then
 			handleGotFood(i)
 			break
 		end
@@ -159,15 +163,17 @@ end
 function handleGotFood(foodIndex)
 	local food = foods[foodIndex]
 	table.remove(foods, foodIndex)
-	currentPowerLevel = currentPowerLevel + POWER_PER_FOOD
+	currentPowerLevel = math.min(MAX_POWER, currentPowerLevel + POWER_PER_FOOD)
 end
 
 -- Utility stuff
 
 function makeFood()
 	local food = {}
-	food.speed = currentFallRate * frand() * MAX_FOOD_SPEED_VARIATION
-	food.position = v(frand() * screenWidth * 0.4, -screenHeight / 2 - currentWorldOffset)
+	local leftSide = (frand() > 0) and true or false
+	food.velocity = v(BASE_FOOD_X_SPEED * (1 + frand() * FOOD_X_SPEED_VARIATION) * (leftSide and 1 or -1), currentFallRate * (frand() - 1) * FOOD_Y_SPEED_VARIATION)
+	local y = playerPosition.y - math.random() * screenHeight / 2
+	food.position = v((leftSide and -1 or 1) * screenWidth * 0.52, y)
 	foods[#foods + 1] = food
 end
 
