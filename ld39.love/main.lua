@@ -29,12 +29,23 @@ local FOOD_SPAWN_INTERVAL_GROWTH = 0.05
 
 local POWER_BAR_WIDTH = 100
 
+local PLAYER_SIZE = 90
+local FOOD_SIZE = 60
+
 local foods = {}
 
 local screenWidth, screenHeight
 
+local youShader
+local quadMesh
+
 function love.load()
 	math.randomseed(os.time())
+
+	youShader = love.graphics.newShader("you.fsh")
+	
+	local quadVertices = {{-0.5, -0.5, 0, 0}, {0.5, -0.5, 1, 0}, {-0.5, 0.5, 0, 1}, {0.5, 0.5, 1, 1}}
+	quadMesh = love.graphics.newMesh(quadVertices, "strip", "static")
 
 	screenWidth, screenHeight = love.window.getMode()
 	elapsedTime = 0
@@ -75,7 +86,7 @@ function love.update(dt)
 		-- they’ll get caught in the next one, though, so that doesn’t matter
 		-- the accounting to keep track of multiple indices is not hard, I just don’t feel like doing it
 
-		if vDist(playerPosition, foods[i].position) < 30 then
+		if vDist(playerPosition, foods[i].position) < (PLAYER_SIZE + FOOD_SIZE) / 3 then
 			handleGotFood(i)
 			break
 		end
@@ -125,22 +136,34 @@ function love.draw()
 	
 
 	love.graphics.translate(screenWidth / 2, screenHeight / 2 + currentWorldOffset)
+
+	love.graphics.setBlendMode("add") -- everything glowy should be additive, duh
 	
 	-- player
 
 	love.graphics.setColor(255, 255, 255, 255)
-	love.graphics.circle("fill", playerPosition.x, playerPosition.y, 20)
+	love.graphics.push()
+	love.graphics.translate(playerPosition.x, playerPosition.y)
+	love.graphics.scale(90)
+	love.graphics.rotate(elapsedTime * 0.6)
+	love.graphics.setShader(youShader)
+	youShader:send("iGlobalTime", elapsedTime)
+	love.graphics.draw(quadMesh)
+	love.graphics.setShader()
+
+	love.graphics.pop()
 
 	-- foods
 
 	love.graphics.setColor(120, 255, 40, 255)
 	for i = 1, #foods do
-		love.graphics.circle("fill", foods[i].position.x, foods[i].position.y, 10)
+		love.graphics.circle("fill", foods[i].position.x, foods[i].position.y, FOOD_SIZE / 2)
 	end
 
 
 	love.graphics.pop()
 
+	love.graphics.setBlendMode("alpha")
 
 	-- UI
 
