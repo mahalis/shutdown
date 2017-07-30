@@ -61,6 +61,8 @@ local lastFoodTime = -2 * FOOD_GLOW_FADE_DURATION
 
 local isPlaying, isGameOver
 
+local backgroundMusic
+
 function love.load()
 	math.randomseed(os.time())
 	screenWidth, screenHeight = love.window.getMode()
@@ -106,6 +108,10 @@ function love.load()
 	foodTemplateEmitter:setParticleLifetime(0.6, 1.2)
 	foodTemplateEmitter:setSizeVariation(0)
 	foodTemplateEmitter:setLinearAcceleration(0, 40)
+
+	backgroundMusic = love.audio.newSource("music.ogg")
+	backgroundMusic:setLooping(true)
+	backgroundMusic:play()
 
 	elapsedTime = 0
 	setup()
@@ -233,7 +239,7 @@ function love.draw()
 	love.graphics.clear(0, 0, 0, 255)
 
 	local feedProgress = ((elapsedTime - lastFoodTime) / FOOD_GLOW_FADE_DURATION)
-
+	local beatValue = guessedBeatValue()
 	setCanvasAndClear(canvases[1])
 
 		local pixelScale = love.window.getPixelScale()
@@ -258,7 +264,7 @@ function love.draw()
 			love.graphics.setColor(255, 255, 255, 255)
 			love.graphics.push()
 				love.graphics.translate(playerPosition.x, playerPosition.y)
-				love.graphics.scale(PLAYER_SIZE * (1.0 + 0.2 * math.sin(feedProgress * math.pi * 6) * math.exp(-4 * feedProgress)))
+				love.graphics.scale(PLAYER_SIZE * (1.0 + 0.2 * math.sin(feedProgress * math.pi * 6) * math.exp(-4 * feedProgress) + 0.2 * beatValue))
 				love.graphics.rotate(playerRotation)
 
 				love.graphics.setShader(youShader)
@@ -278,7 +284,7 @@ function love.draw()
 				local food = foods[i]
 				love.graphics.push()
 				love.graphics.translate(food.position.x, food.position.y)
-				love.graphics.scale(FOOD_SIZE)
+				love.graphics.scale(FOOD_SIZE * (1.0 + 0.1 * beatValue))
 				love.graphics.rotate(elapsedTime * 0.53)
 
 				youShader:send("sides", food.sideCount)
@@ -390,9 +396,7 @@ function doJump(first)
 			playerVelocity = currentJumpVelocity()
 			currentPowerLevel = currentPowerLevel - POWER_PER_JUMP
 		end
-		currentPlayerSpin = JUMP_SPIN * ((playerVelocity.x > 0) and 1 or -1)
-	else
-		-- TODO: indicate you have no jump power	
+		currentPlayerSpin = JUMP_SPIN * ((playerVelocity.x > 0) and 1 or -1)	
 	end
 end
 
@@ -413,6 +417,12 @@ function handleGotFood(foodIndex)
 end
 
 -- Utility stuff
+
+function guessedBeatValue()
+	local secondsPerBeat = 60 / 100 -- 100 bpm
+	local thisBeatValue = math.fmod(elapsedTime + 0.1, secondsPerBeat) / secondsPerBeat
+	return math.pow(1 - thisBeatValue, 2)
+end
 
 function makeFoodExplosion(food)
 	local exp = {}
