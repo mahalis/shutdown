@@ -19,7 +19,7 @@ float layerValue(vec2 uv, float time, float fill) {
     //float xDistanceLeft = smoothstep(-0.02, 0., abs(u));
     //float xDistanceRight = smoothstep(0.04, 0., fill - uv.x);
     float xDistance = smoothstep(-0.02, 0., abs(uv.x - 0.5) - 0.5);
-    return max(stripe1, max(stripe2, max(xDistance, yDistance))) * smoothstep(0., 0.01, fill - uv.x);
+    return max(max(stripe1, stripe2) * smoothstep(0., 0.01, fill - uv.x), max(xDistance, yDistance));
 }
 
 vec4 effect(vec4 baseColor, Image texture, vec2 textureCoordinates, vec2 screenCoordinates) {

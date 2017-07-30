@@ -53,6 +53,9 @@ vec4 effect(vec4 baseColor, Image texture, vec2 textureCoordinates, vec2 screenC
     
     vec3 color = v1 + v2 + v3;
     color *= 1.5;
-    
+
+    // replace dark areas with white (makes text more legible)
+    color = mix(color, vec3(1.), smoothstep(0.01,0., dot(color, vec3(0.213, 0.715, 0.072)) - 0.3));
+
 	return vec4(color, 1.) * baseColor * Texel(texture, textureCoordinates);
 }

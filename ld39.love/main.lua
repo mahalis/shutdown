@@ -25,7 +25,7 @@ local POWER_PER_JUMP = 3
 local POWER_PER_FOOD = 5
 local POWER_DECAY = 1.2
 
-local BASE_FOOD_SPAWN_INTERVAL = 0.8
+local BASE_FOOD_SPAWN_INTERVAL = 0.75
 local FOOD_SPAWN_VARIATION = 0.2
 local FOOD_SPAWN_INTERVAL_GROWTH = 0
 
@@ -380,7 +380,7 @@ function love.draw()
 	end
 
 	if isGameOver then
-		extraGlowValue = beatValue * 0.5
+		extraGlowValue = beatValue * 0.3
 	end
 
 	if extraGlowValue > 0 then
@@ -395,12 +395,11 @@ function love.draw()
 	love.graphics.setBlendMode("alpha")
 
 	-- UI
-
-	love.graphics.setColor(255, 255, 255, 255 * mainMultiplier)
-	love.graphics.setLineWidth(2)
-	love.graphics.rectangle("line", UI_EDGE_INSET, UI_EDGE_INSET, POWER_BAR_WIDTH, POWER_BAR_HEIGHT)
+	
 	if isGameOver then
 		love.graphics.setColor(255, 255, 255, 255)
+	else
+		love.graphics.setColor(255, 255, 255, 255 * mainMultiplier)
 	end
 	drawScoreTexts(isGameOver, true)
 
@@ -519,6 +518,10 @@ function love.keypressed(key)
 			beginGame()
 		end
 	end
+end
+
+function love.mousepressed()
+	love.keypressed("space")
 end
 
 function beginGame()
