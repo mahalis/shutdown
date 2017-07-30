@@ -45,7 +45,7 @@ local foodColorSchemes =  { { { 0.94, 0.05, 0.65 }, { 0.85, 0.15, 0.35 }, { 0.4,
 							{ { 0.6, 0.05, 0.93 }, { 0.4, 0.03, 0.95 }, { 0.1, 0.4, 0.9 } }, -- purple
 							{ { 0.05, 0.4, 0.95 }, { 0.3, 0.8, 0.6 }, { 0.05, 0.1, 0.9 } } } -- cyan
 local canvases = {}
-local thresholdShader, blurShaderX, blurShaderY
+local thresholdShader, blurShaderX, blurShaderY, backgroundShader
 
 function love.load()
 	math.randomseed(os.time())
@@ -56,6 +56,8 @@ function love.load()
 	thresholdShader = love.graphics.newShader("threshold.fsh")
 	blurShaderX = makeBlurShader(25, screenWidth, 1, 0)
 	blurShaderY = makeBlurShader(15, screenHeight, 0, 1)
+	backgroundShader = love.graphics.newShader("grid.fsh")
+	backgroundShader:send("screenDimensions", {screenWidth, screenHeight})
 	
 	local quadVertices = {{-0.5, -0.5, 0, 0}, {0.5, -0.5, 1, 0}, {-0.5, 0.5, 0, 1}, {0.5, 0.5, 1, 1}}
 	quadMesh = love.graphics.newMesh(quadVertices, "strip", "static")
@@ -151,20 +153,12 @@ function love.draw()
 		love.graphics.push()
 
 			-- grid
-
-			local lineSpacing = 42
-			local lineShiftY = math.fmod(currentWorldOffset, lineSpacing)
-			love.graphics.setColor(255, 255, 255, 60)
-			for i = 0, math.ceil(screenHeight / lineSpacing) do
-				local lineY = i * lineSpacing + lineShiftY
-				love.graphics.line(0, lineY, screenWidth, lineY)
-			end
-			local lineShiftX = math.fmod(screenWidth, lineSpacing) / 2 -- center them
-			for i = 0, math.ceil(screenWidth / lineSpacing) do
-				local lineX = i * lineSpacing + lineShiftX
-				love.graphics.line(lineX, 0, lineX, screenHeight)
-			end
-			
+			love.graphics.push()
+				love.graphics.setShader(backgroundShader)
+				backgroundShader:send("worldYOffset", currentWorldOffset)
+				love.graphics.scale(screenWidth, screenHeight)
+				love.graphics.draw(quadMesh, 0.5, 0.5)
+			love.graphics.pop()
 
 			love.graphics.translate(screenWidth / 2, screenHeight / 2 + currentWorldOffset)
 
