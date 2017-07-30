@@ -37,7 +37,7 @@ local FOOD_SIZE = 60
 
 local foods = {}
 
-local screenWidth, screenHeight
+local screenWidth, screenHeight, pixelScale
 
 local youShader
 local quadMesh
@@ -62,11 +62,12 @@ local lastFoodTime = -2 * FOOD_GLOW_FADE_DURATION
 local isPlaying, isGameOver
 
 local backgroundMusic
+local logoImage
 
 function love.load()
 	math.randomseed(os.time())
 	screenWidth, screenHeight = love.window.getMode()
-	local pixelScale = love.window.getPixelScale()
+	pixelScale = love.window.getPixelScale()
 
 	youShader = love.graphics.newShader("creature.fsh")
 	thresholdShader = love.graphics.newShader("threshold.fsh")
@@ -113,8 +114,14 @@ function love.load()
 	backgroundMusic:setLooping(true)
 	backgroundMusic:play()
 
+	logoImage = loadImage("logo")
+
 	elapsedTime = 0
 	setup()
+end
+
+function loadImage(name)
+	return love.graphics.newImage(name .. ((pixelScale > 1) and "@2x" or "") .. ".png")
 end
 
 function setup()
@@ -237,12 +244,12 @@ function love.draw()
 	-- canvas 1 drawn to screen
 
 	love.graphics.clear(0, 0, 0, 255)
+	love.graphics.setColor(255, 255, 255, 255)
 
 	local feedProgress = ((elapsedTime - lastFoodTime) / FOOD_GLOW_FADE_DURATION)
 	local beatValue = guessedBeatValue()
 	setCanvasAndClear(canvases[1])
 
-		local pixelScale = love.window.getPixelScale()
 		love.graphics.scale(pixelScale)
 
 		love.graphics.push()
@@ -352,16 +359,25 @@ function love.draw()
 	love.graphics.setColor(255, 255, 255, 255 * mainMultiplier)
 	love.graphics.setLineWidth(2)
 	love.graphics.rectangle("line", 10, 10, POWER_BAR_WIDTH, POWER_BAR_HEIGHT)
+
+	if not isPlaying and not isGameOver then
+		for i = 3, 0, -1 do
+			love.graphics.setColor(255, 255, 255, 255 * (1 - 0.3 * i))
+			drawCenteredImage(logoImage, screenWidth / 2, screenHeight * 0.3 + i * 20, (1 - 0.15 * i) / pixelScale)
+		end
+		love.graphics.setBlendMode("add")
+		love.graphics.setColor(255 * beatValue, 255 * beatValue, 255 * beatValue, 255)
+		drawCenteredImage(logoImage, screenWidth / 2, screenHeight * 0.3, 1 / pixelScale)
+	end
 end
 
 function updateWorldOffset(dt)
-	currentWorldOffset = math.max(-playerPosition.y + screenHeight * 0.3, currentWorldOffset + currentFallRate * dt)
+	currentWorldOffset = math.max(-playerPosition.y + screenHeight * 0.4, currentWorldOffset + currentFallRate * dt)
 end
 
 function drawCanvas(canvas, scaleMultiplier)
 	scaleMultiplier = scaleMultiplier or 1
-	local oneOverPixelScale = 1 / love.window.getPixelScale()
-	love.graphics.draw(canvas, 0, 0, 0, oneOverPixelScale * scaleMultiplier, oneOverPixelScale * scaleMultiplier)
+	love.graphics.draw(canvas, 0, 0, 0, scaleMultiplier / pixelScale, scaleMultiplier / pixelScale)
 end
 
 function setCanvasAndClear(canvas, shouldClear)
@@ -418,9 +434,9 @@ end
 
 -- Utility stuff
 
-function guessedBeatValue()
+function guessedBeatValue(phase)
 	local secondsPerBeat = 60 / 100 -- 100 bpm
-	local thisBeatValue = math.fmod(elapsedTime + 0.1, secondsPerBeat) / secondsPerBeat
+	local thisBeatValue = math.fmod(elapsedTime / secondsPerBeat + 0.15, 1)
 	return math.pow(1 - thisBeatValue, 2)
 end
 
@@ -475,7 +491,6 @@ function drawCenteredImage(image, x, y, scale, angle)
 end
 
 function mouseScreenPosition()
-	local pixelScale = love.window.getPixelScale()
 	local mouseX, mouseY = love.mouse.getPosition()
 	mouseX = (mouseX / pixelScale - screenWidth / 2)
 	mouseY = (mouseY / pixelScale - (screenHeight / 2 + currentWorldOffset))
