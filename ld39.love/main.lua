@@ -51,7 +51,7 @@ local BASE_PLAYER_SPIN = 0.6 -- radians per second
 local playerRotation, currentPlayerSpin
 local JUMP_SPIN = 11
 
-local foodExplosions = {}
+local foodExplosions
 local foodTemplateEmitter
 local particleImages = {} -- indices 1…4 have polygons with 4…7 sides
 local EXPLOSION_PARTICLES_PER_COLOR = 6
@@ -93,11 +93,11 @@ function love.load()
 	love.graphics.setCanvas()
 
 	foodTemplateEmitter = love.graphics.newParticleSystem(particleImages[1], EXPLOSION_PARTICLES_PER_COLOR)
-	local sMul = 0.25
+	local sMul = 0.5 / pixelScale
 	foodTemplateEmitter:setSizes(0.2 * sMul, 4.0 * sMul, 0.6 * sMul, 1.3 * sMul, 0.8 * sMul, 1.0 * sMul, 0.6 * sMul, 0)
 	foodTemplateEmitter:setSpread(math.pi * 2)
 	foodTemplateEmitter:setSpeed(40, 60)
-	foodTemplateEmitter:setParticleLifetime(0.8, 1.2)
+	foodTemplateEmitter:setParticleLifetime(0.6, 1.2)
 	foodTemplateEmitter:setSizeVariation(0)
 	foodTemplateEmitter:setLinearAcceleration(0, 40)
 
@@ -117,6 +117,9 @@ function setup()
 	extraFoodSpawnTime = 0
 
 	foods = {}
+	foodExplosions = {}
+
+	for i = 1, 4 do makeFood() end
 end
 
 function love.update(dt)
