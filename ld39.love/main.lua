@@ -370,20 +370,29 @@ function love.keypressed(key)
 		love.event.quit()
 	elseif key == "space" then
 		if isPlaying then
-			if currentPowerLevel > POWER_PER_JUMP then
-				playerVelocity = currentJumpVelocity()
-				currentPowerLevel = currentPowerLevel - POWER_PER_JUMP
-				currentPlayerSpin = JUMP_SPIN * ((playerVelocity.x > 0) and 1 or -1)
-			else
-				-- TODO: indicate you have no jump power	
-			end
+			doJump()
 		elseif isGameOver then
 			setup()
 		else
 			isPlaying = true
+			doJump(true)
 		end
 	elseif key == "f" then
 		makeFood() -- TODO: remember to remove this before release (i.e., don’t be an idiot)
+	end
+end
+
+function doJump(first)
+	if currentPowerLevel > POWER_PER_JUMP then
+		if first then
+			playerVelocity = v(0, -JUMP_SPEED)
+		else
+			playerVelocity = currentJumpVelocity()
+			currentPowerLevel = currentPowerLevel - POWER_PER_JUMP
+		end
+		currentPlayerSpin = JUMP_SPIN * ((playerVelocity.x > 0) and 1 or -1)
+	else
+		-- TODO: indicate you have no jump power	
 	end
 end
 
