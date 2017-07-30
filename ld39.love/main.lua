@@ -66,11 +66,11 @@ local backgroundMusic
 local logoImage, instructionImage, completeImage
 local scoreFont, bestScoreFont, bigScoreFont
 
-local beganPlayingTime, gameOverTime
+local beganPlayingTime, gameOverTime, resetTime
 
 local SCORE_PER_SECOND = 6
-local BEGIN_TITLE_MOVE_DURATION = 0.5
-local END_TITLE_MOVE_DURATION = 1
+local TITLE_MOVE_DURATION_OUT = 0.5
+local TITLE_MOVE_DURATION_IN = 1
 
 function love.load()
 	math.randomseed(os.time())
@@ -132,6 +132,8 @@ function love.load()
 	bigScoreFont = love.graphics.newFont(scoreFontName, 80)
 
 	elapsedTime = 0
+	resetTime = -5
+
 	setup()
 end
 
@@ -143,8 +145,8 @@ function setup()
 	isPlaying = false
 	isGameOver = false
 
-	beganPlayingTime = -2 * BEGIN_TITLE_MOVE_DURATION --don’t want any animations going off unexpectedly
-	gameOverTime = -2 * END_TITLE_MOVE_DURATION -- ditto
+	beganPlayingTime = -2 * TITLE_MOVE_DURATION_OUT --don’t want any animations going off unexpectedly
+	gameOverTime = -2 * TITLE_MOVE_DURATION_IN -- ditto
 
 	playerPosition = v(0,0)
 	playerVelocity = v(0,0)
@@ -250,6 +252,10 @@ function love.update(dt)
 		local delay = BASE_FOOD_SPAWN_INTERVAL + extraFoodSpawnTime
 		nextFoodSpawnTime = elapsedTime + delay * (1 + frand() * FOOD_SPAWN_VARIATION)
 		makeFood()
+	end
+
+	if isGameOver and resetTime > 0 and elapsedTime > resetTime + TITLE_MOVE_DURATION_OUT then
+		setup()
 	end
 end
 
@@ -394,17 +400,32 @@ function love.draw()
 	end
 	drawScoreTexts(isGameOver)
 
-	local shouldDrawTitles = (not isPlaying) or (elapsedTime < beganPlayingTime + BEGIN_TITLE_MOVE_DURATION)
+	local shouldDrawTitles = (not isPlaying) or (elapsedTime < beganPlayingTime + TITLE_MOVE_DURATION_OUT)
 	if shouldDrawTitles then
-		local titleMovementCurvePower = isGameOver and 9 or 3
+		local areTitlesEntering = isGameOver or (resetTime > 0 and elapsedTime > resetTime + TITLE_MOVE_DURATION_OUT and elapsedTime < resetTime + TITLE_MOVE_DURATION_OUT + TITLE_MOVE_DURATION_IN)
+		local titleMovementCurvePower = areTitlesEntering and 9 or 3 -- make sure these stay odd so stuff isn’t always offset in positive X
 
 		local mainLogoY = screenHeight * 0.3
 		local mainLogoXOffsetAmount = 0
-		if elapsedTime < beganPlayingTime + BEGIN_TITLE_MOVE_DURATION then
-			mainLogoXOffsetAmount = math.pow((elapsedTime - beganPlayingTime) / BEGIN_TITLE_MOVE_DURATION, titleMovementCurvePower)
-		elseif elapsedTime < gameOverTime + END_TITLE_MOVE_DURATION then
-			mainLogoXOffsetAmount = -(math.pow(1 - ((elapsedTime - gameOverTime) / END_TITLE_MOVE_DURATION), titleMovementCurvePower))
+		if elapsedTime < beganPlayingTime + TITLE_MOVE_DURATION_OUT then
+			mainLogoXOffsetAmount = (elapsedTime - beganPlayingTime) / TITLE_MOVE_DURATION_OUT
+		elseif elapsedTime < gameOverTime + TITLE_MOVE_DURATION_IN then
+			mainLogoXOffsetAmount = -1 + (elapsedTime - gameOverTime) / TITLE_MOVE_DURATION_IN
+		elseif elapsedTime < resetTime + TITLE_MOVE_DURATION_OUT then
+			mainLogoXOffsetAmount = (elapsedTime - resetTime) / TITLE_MOVE_DURATION_OUT
+		elseif elapsedTime < resetTime + TITLE_MOVE_DURATION_OUT + TITLE_MOVE_DURATION_IN then
+			mainLogoXOffsetAmount = -1 + (elapsedTime - (resetTime + TITLE_MOVE_DURATION_OUT)) / TITLE_MOVE_DURATION_IN
 		end
+		mainLogoXOffsetAmount = math.pow(mainLogoXOffsetAmount, titleMovementCurvePower)
+
+		local completeY = screenHeight * 0.45
+		local completeXOffsetAmount = 0
+		if elapsedTime < gameOverTime + TITLE_MOVE_DURATION_IN then
+			completeXOffsetAmount = 1 - (elapsedTime - gameOverTime) / TITLE_MOVE_DURATION_IN
+		elseif elapsedTime < resetTime + TITLE_MOVE_DURATION_OUT then
+			completeXOffsetAmount = (elapsedTime - resetTime) / TITLE_MOVE_DURATION_OUT
+		end
+		completeXOffsetAmount = math.pow(completeXOffsetAmount, titleMovementCurvePower)
 
 		local instanceCount = isGameOver and 0 or 3
 		for i = instanceCount, 0, -1 do
@@ -412,11 +433,6 @@ function love.draw()
 			drawCenteredImage(logoImage, screenWidth * (0.5 + mainLogoXOffsetAmount * (1 - 0.1 * i)), mainLogoY + i * 20, (1 - 0.15 * i) / pixelScale)
 		end
 
-		local completeY = screenHeight * 0.45
-		local completeXOffsetAmount = 0
-		if elapsedTime < gameOverTime + END_TITLE_MOVE_DURATION then
-			completeXOffsetAmount = math.pow(1 - (elapsedTime - gameOverTime) / END_TITLE_MOVE_DURATION, titleMovementCurvePower)
-		end
 		if isGameOver then
 			-- second part of logo text (“complete”)
 			drawCenteredImage(completeImage, screenWidth * (0.5 + completeXOffsetAmount), completeY, 1 / pixelScale)
@@ -468,15 +484,22 @@ function love.keypressed(key)
 		if isPlaying then
 			doJump()
 		elseif isGameOver then
-			setup()
+			if elapsedTime > gameOverTime + TITLE_MOVE_DURATION_IN then
+				resetTime = elapsedTime
+			end
 		else
-			isPlaying = true
-			beganPlayingTime = elapsedTime
-			doJump(true)
+			begin()
 		end
 	elseif key == "f" then
 		makeFood() -- TODO: remember to remove this before release (i.e., don’t be an idiot)
 	end
+end
+
+function begin()
+	isPlaying = true
+	beganPlayingTime = elapsedTime
+	doJump(true)
+	resetTime = -5
 end
 
 function doJump(first)
