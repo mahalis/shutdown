@@ -129,7 +129,7 @@ function love.update(dt)
 
 	playerPosition = vAdd(playerPosition, vMul(playerVelocity, dt))
 
-	local halfWidth = screenWidth / 2
+	local halfWidth = screenWidth * 0.45
 	if playerPosition.x < -halfWidth then
 		playerPosition.x = -halfWidth + 1
 		playerVelocity.x = math.abs(playerVelocity.x)
@@ -211,6 +211,8 @@ function love.draw()
 
 	love.graphics.clear(0, 0, 0, 255)
 
+	local feedProgress = ((elapsedTime - lastFoodTime) / FOOD_GLOW_FADE_DURATION)
+
 	setCanvasAndClear(canvases[1])
 
 		local pixelScale = love.window.getPixelScale()
@@ -235,7 +237,7 @@ function love.draw()
 			love.graphics.setColor(255, 255, 255, 255)
 			love.graphics.push()
 				love.graphics.translate(playerPosition.x, playerPosition.y)
-				love.graphics.scale(PLAYER_SIZE)
+				love.graphics.scale(PLAYER_SIZE * (1.0 + 0.2 * math.sin(feedProgress * math.pi * 6) * math.exp(-4 * feedProgress)))
 				love.graphics.rotate(playerRotation)
 
 				love.graphics.setShader(youShader)
@@ -295,7 +297,7 @@ function love.draw()
 	love.graphics.setBlendMode("add")
 	drawCanvas(canvases[2], 2)
 	if elapsedTime < lastFoodTime + FOOD_GLOW_FADE_DURATION then
-		local mul = 1 - ((elapsedTime - lastFoodTime) / FOOD_GLOW_FADE_DURATION)
+		local mul = 1 - feedProgress
 		love.graphics.setColor(255 * mul, 255 * mul, 255 * mul, 255 * mul)
 		drawCanvas(canvases[2], 2)
 	end
