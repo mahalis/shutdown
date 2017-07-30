@@ -51,6 +51,11 @@ local BASE_PLAYER_SPIN = 0.6 -- radians per second
 local playerRotation, currentPlayerSpin
 local JUMP_SPIN = 11
 
+local foodExplosions = {}
+local foodTemplateEmitter
+local particleImages = {} -- indices 1…4 have polygons with 4…7 sides
+local EXPLOSION_PARTICLES_PER_COLOR = 6
+
 function love.load()
 	math.randomseed(os.time())
 	screenWidth, screenHeight = love.window.getMode()
@@ -72,6 +77,30 @@ function love.load()
 		canvas:setWrap("clampzero", "clampzero")
 		canvases[i] = canvas
 	end
+
+	local particleCanvasSize = FOOD_SIZE * 0.5 * pixelScale
+	particleCanvas = love.graphics.newCanvas(particleCanvasSize, particleCanvasSize)
+	love.graphics.setCanvas(particleCanvas)
+		
+		for i = 1, 4 do
+			love.graphics.clear(0,0,0,255)
+			love.graphics.setColor(255, 255, 255, 255)
+			love.graphics.circle("fill", particleCanvasSize / 2, particleCanvasSize / 2, particleCanvasSize / 2, i + 3)
+			love.graphics.setColor(0, 0, 0, 255)
+			love.graphics.circle("fill", particleCanvasSize / 2, particleCanvasSize / 2, particleCanvasSize / 4, i + 3)
+			particleImages[i] = love.graphics.newImage(particleCanvas:newImageData())
+		end
+	love.graphics.setCanvas()
+
+	foodTemplateEmitter = love.graphics.newParticleSystem(particleImages[1], EXPLOSION_PARTICLES_PER_COLOR)
+	local sMul = 0.25
+	foodTemplateEmitter:setSizes(0.2 * sMul, 4.0 * sMul, 0.6 * sMul, 1.3 * sMul, 0.8 * sMul, 1.0 * sMul, 0.6 * sMul, 0)
+	foodTemplateEmitter:setSpread(math.pi * 2)
+	foodTemplateEmitter:setSpeed(40, 60)
+	foodTemplateEmitter:setParticleLifetime(0.8, 1.2)
+	foodTemplateEmitter:setSizeVariation(0)
+	foodTemplateEmitter:setLinearAcceleration(0, 40)
+
 	elapsedTime = 0
 	setup()
 end
@@ -125,6 +154,29 @@ function love.update(dt)
 			table.remove(foods, i)
 			break
 		end
+	end
+
+	local explosionIndicesToRemove = {}
+	for i = 1, #foodExplosions do
+		local allEmittersDead = true
+		for j = 1, 3 do
+			local emitter = foodExplosions[i].emitters[j]
+			local x, y = emitter:getPosition()
+			emitter:setPosition(x + foodExplosions[i].velocity.x * dt, y + foodExplosions[i].velocity.y * dt)
+			emitter:update(dt)
+			if emitter:getCount() > 0 then
+				allEmittersDead = false
+			end
+		end
+		if allEmittersDead then
+			explosionIndicesToRemove[#explosionIndicesToRemove + 1] = i
+		end
+	end
+
+	local alreadyRemovedExplosionCount = 0
+	for i = 1, #explosionIndicesToRemove do
+		table.remove(foodExplosions, explosionIndicesToRemove[i] - alreadyRemovedExplosionCount)
+		alreadyRemovedExplosionCount = alreadyRemovedExplosionCount + 1
 	end
 
 	playerVelocity = vMul(playerVelocity, 1 - PLAYER_DRAG * dt)
@@ -212,6 +264,12 @@ function love.draw()
 			end
 			love.graphics.setShader()
 
+			for i = 1, #foodExplosions do
+				for j = 1, 3 do
+					love.graphics.draw(foodExplosions[i].emitters[j])
+				end
+			end
+
 		love.graphics.pop()
 
 	love.graphics.setBlendMode("alpha", "premultiplied")
@@ -280,9 +338,30 @@ function handleGotFood(foodIndex)
 	local food = foods[foodIndex]
 	table.remove(foods, foodIndex)
 	currentPowerLevel = math.min(MAX_POWER, currentPowerLevel + POWER_PER_FOOD)
+	makeFoodExplosion(food)
 end
 
 -- Utility stuff
+
+function makeFoodExplosion(food)
+	local exp = {}
+	exp.velocity = food.velocity
+	local emitters = {}
+	for i = 1, 3 do
+		local em = foodTemplateEmitter:clone()
+		em:setPosition(food.position.x, food.position.y)
+		local scheme = foodColorSchemes[food.colorSchemeIndex][i]
+		em:setTexture(particleImages[food.sideCount - 3])
+		local fullColors = { scheme[1] * 255, scheme[2] * 255, scheme[3] * 255}
+		em:setColors(fullColors, { 255, 255, 255 }, fullColors, fullColors, fullColors)
+		em:emit(EXPLOSION_PARTICLES_PER_COLOR)
+		emitters[i] = em
+	end
+	exp.emitters = emitters
+	
+
+	foodExplosions[#foodExplosions + 1] = exp
+end
 
 function makeFood()
 	local food = {}
