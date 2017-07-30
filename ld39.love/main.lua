@@ -58,8 +58,8 @@ function love.load()
 
 	youShader = love.graphics.newShader("creature.fsh")
 	thresholdShader = love.graphics.newShader("threshold.fsh")
-	blurShaderX = makeBlurShader(25, screenWidth, 1, 0)
-	blurShaderY = makeBlurShader(15, screenHeight, 0, 1)
+	blurShaderX = makeBlurShader(45, screenWidth, 1, 0)
+	blurShaderY = makeBlurShader(25, screenHeight, 0, 1)
 	backgroundShader = love.graphics.newShader("grid.fsh")
 	backgroundShader:send("screenDimensions", {screenWidth, screenHeight})
 	
@@ -67,7 +67,8 @@ function love.load()
 	quadMesh = love.graphics.newMesh(quadVertices, "strip", "static")
 	
 	for i = 1, 3 do
-		local canvas = love.graphics.newCanvas(screenWidth * pixelScale, screenHeight * pixelScale)
+		local scaleMultiplier = (i == 1) and 1 or 0.5
+		local canvas = love.graphics.newCanvas(screenWidth * pixelScale * scaleMultiplier, screenHeight * pixelScale * scaleMultiplier)
 		canvas:setWrap("clampzero", "clampzero")
 		canvases[i] = canvas
 	end
@@ -216,19 +217,19 @@ function love.draw()
 	love.graphics.setBlendMode("alpha", "premultiplied")
 	setCanvasAndClear(canvases[2])
 		love.graphics.setShader(thresholdShader)
-			drawCanvas(canvases[1])
+			drawCanvas(canvases[1], 0.5)
 	setCanvasAndClear(canvases[3])
 		love.graphics.setColor(200, 220, 255, 255)
 		love.graphics.setShader(blurShaderX)
-			drawCanvas(canvases[2])
-	love.graphics.setCanvas()
-
-	love.graphics.setBlendMode("add")
-	love.graphics.setColor(255, 255, 255, 255)
-	love.graphics.setShader(blurShaderY)
-		drawCanvas(canvases[3])
+			drawCanvas(canvases[2], 1)
+	setCanvasAndClear(canvases[2])
+		love.graphics.setColor(255, 255, 255, 255)
+		love.graphics.setShader(blurShaderY)
+			drawCanvas(canvases[3], 1)
 	love.graphics.setShader()
-	
+	love.graphics.setCanvas()
+	drawCanvas(canvases[2], 2)
+	love.graphics.setBlendMode("add")
 	drawCanvas(canvases[1]) -- original unblurred one
 
 	love.graphics.setBlendMode("alpha")
@@ -240,9 +241,10 @@ function love.draw()
 	love.graphics.rectangle("fill", 10, 10, POWER_BAR_WIDTH * math.max(0, currentPowerLevel / MAX_POWER), 10)
 end
 
-function drawCanvas(canvas)
-	local oneOverScale = 1 / love.window.getPixelScale()
-	love.graphics.draw(canvas, 0, 0, 0, oneOverScale, oneOverScale)
+function drawCanvas(canvas, scaleMultiplier)
+	scaleMultiplier = scaleMultiplier or 1
+	local oneOverPixelScale = 1 / love.window.getPixelScale()
+	love.graphics.draw(canvas, 0, 0, 0, oneOverPixelScale * scaleMultiplier, oneOverPixelScale * scaleMultiplier)
 end
 
 function setCanvasAndClear(canvas, shouldClear)
@@ -259,7 +261,7 @@ function love.keypressed(key)
 		if currentPowerLevel > POWER_PER_JUMP then
 			playerVelocity = currentJumpVelocity()
 			currentPowerLevel = currentPowerLevel - POWER_PER_JUMP
-			currentPlayerSpin = JUMP_SPIN * ((math.random() > 0.5) and 1 or -1)
+			currentPlayerSpin = JUMP_SPIN * ((playerVelocity.x > 0) and 1 or -1)
 		else
 			-- TODO: indicate you have no jump power	
 		end
