@@ -456,7 +456,8 @@ function love.draw()
 end
 
 function updateWorldOffset(dt)
-	currentWorldOffset = math.max(-playerPosition.y + screenHeight * 0.4, currentWorldOffset + currentFallRate * dt)
+	local screenPositionTarget = 0.4 - 0.2 * ((currentFallRate - BASE_FALL_RATE) / 100) -- later in the game the world’s moving fast enough that you end up scrabbling at the bottom of the screen; compensate for that
+	currentWorldOffset = math.max(-playerPosition.y + screenHeight * screenPositionTarget, currentWorldOffset + currentFallRate * dt)
 end
 
 function drawScoreTexts(final, includeLabels)
