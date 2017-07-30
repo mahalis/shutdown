@@ -29,7 +29,8 @@ local BASE_FOOD_SPAWN_INTERVAL = 0.8
 local FOOD_SPAWN_VARIATION = 0.2
 local FOOD_SPAWN_INTERVAL_GROWTH = 0
 
-local POWER_BAR_WIDTH = 100
+local POWER_BAR_WIDTH = 200
+local POWER_BAR_HEIGHT = 20
 
 local PLAYER_SIZE = 90
 local FOOD_SIZE = 60
@@ -45,7 +46,7 @@ local foodColorSchemes =  { { { 0.94, 0.05, 0.65 }, { 0.85, 0.15, 0.35 }, { 0.4,
 							{ { 0.6, 0.05, 0.93 }, { 0.4, 0.03, 0.95 }, { 0.1, 0.4, 0.9 } }, -- purple
 							{ { 0.05, 0.4, 0.95 }, { 0.3, 0.8, 0.6 }, { 0.05, 0.1, 0.9 } } } -- cyan
 local canvases = {}
-local thresholdShader, blurShaderX, blurShaderY, backgroundShader
+local thresholdShader, blurShaderX, blurShaderY, backgroundShader, barShader
 
 local BASE_PLAYER_SPIN = 0.6 -- radians per second
 local playerRotation, currentPlayerSpin
@@ -69,6 +70,7 @@ function love.load()
 	blurShaderY = makeBlurShader(25, screenHeight, 0, 1)
 	backgroundShader = love.graphics.newShader("grid.fsh")
 	backgroundShader:send("screenDimensions", {screenWidth, screenHeight})
+	barShader = love.graphics.newShader("bar.fsh")
 	
 	local quadVertices = {{-0.5, -0.5, 0, 0}, {0.5, -0.5, 1, 0}, {-0.5, 0.5, 0, 1}, {0.5, 0.5, 1, 1}}
 	quadMesh = love.graphics.newMesh(quadVertices, "strip", "static")
@@ -129,7 +131,7 @@ function love.update(dt)
 
 	playerPosition = vAdd(playerPosition, vMul(playerVelocity, dt))
 
-	local halfWidth = screenWidth * 0.45
+	local halfWidth = screenWidth * 0.42
 	if playerPosition.x < -halfWidth then
 		playerPosition.x = -halfWidth + 1
 		playerVelocity.x = math.abs(playerVelocity.x)
@@ -279,6 +281,18 @@ function love.draw()
 
 		love.graphics.pop()
 
+		-- bar
+		love.graphics.push()
+			love.graphics.translate(10 + POWER_BAR_WIDTH / 2, 10 + POWER_BAR_HEIGHT / 2)
+			love.graphics.scale(POWER_BAR_WIDTH, POWER_BAR_HEIGHT)
+			love.graphics.setShader(barShader)
+			barShader:send("iGlobalTime", elapsedTime)
+			barShader:send("fill", math.max(0, math.min(1, currentPowerLevel / MAX_POWER)))
+			love.graphics.draw(quadMesh)
+			love.graphics.setShader()
+		love.graphics.pop()
+
+
 	love.graphics.setBlendMode("alpha", "premultiplied")
 	setCanvasAndClear(canvases[2])
 		love.graphics.setShader(thresholdShader)
@@ -310,8 +324,8 @@ function love.draw()
 	-- UI
 
 	love.graphics.setColor(255, 255, 255, 255)
-	love.graphics.rectangle("line", 10, 10, POWER_BAR_WIDTH, 10)
-	love.graphics.rectangle("fill", 10, 10, POWER_BAR_WIDTH * math.max(0, currentPowerLevel / MAX_POWER), 10)
+	love.graphics.setLineWidth(2)
+	love.graphics.rectangle("line", 10, 10, POWER_BAR_WIDTH, POWER_BAR_HEIGHT)
 end
 
 function drawCanvas(canvas, scaleMultiplier)
