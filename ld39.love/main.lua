@@ -55,6 +55,8 @@ local foodExplosions
 local foodTemplateEmitter
 local particleImages = {} -- indices 1…4 have polygons with 4…7 sides
 local EXPLOSION_PARTICLES_PER_COLOR = 6
+local FOOD_GLOW_FADE_DURATION = 2
+local lastFoodTime = -2 * FOOD_GLOW_FADE_DURATION
 
 function love.load()
 	math.randomseed(os.time())
@@ -289,8 +291,16 @@ function love.draw()
 			drawCanvas(canvases[3], 1)
 	love.graphics.setShader()
 	love.graphics.setCanvas()
-	drawCanvas(canvases[2], 2)
+
 	love.graphics.setBlendMode("add")
+	drawCanvas(canvases[2], 2)
+	if elapsedTime < lastFoodTime + FOOD_GLOW_FADE_DURATION then
+		local mul = 1 - ((elapsedTime - lastFoodTime) / FOOD_GLOW_FADE_DURATION)
+		love.graphics.setColor(255 * mul, 255 * mul, 255 * mul, 255 * mul)
+		drawCanvas(canvases[2], 2)
+	end
+
+	love.graphics.setColor(255, 255, 255, 255)
 	drawCanvas(canvases[1]) -- original unblurred one
 
 	love.graphics.setBlendMode("alpha")
@@ -341,6 +351,7 @@ function handleGotFood(foodIndex)
 	local food = foods[foodIndex]
 	table.remove(foods, foodIndex)
 	currentPowerLevel = math.min(MAX_POWER, currentPowerLevel + POWER_PER_FOOD)
+	lastFoodTime = elapsedTime
 	makeFoodExplosion(food)
 end
 
@@ -357,6 +368,7 @@ function makeFoodExplosion(food)
 		em:setTexture(particleImages[food.sideCount - 3])
 		local fullColors = { scheme[1] * 255, scheme[2] * 255, scheme[3] * 255}
 		em:setColors(fullColors, { 255, 255, 255 }, fullColors, fullColors, fullColors)
+		em:setRotation(elapsedTime * 0.53 + math.pi * 0.25)
 		em:emit(EXPLOSION_PARTICLES_PER_COLOR)
 		emitters[i] = em
 	end
