@@ -7,7 +7,7 @@ float smoothStripe(float v, float stripeWidth, float smoothingWidth, float offse
 }
 
 vec4 effect(vec4 baseColor, Image texture, vec2 textureCoordinates, vec2 screenCoordinates) {
-	vec2 distortedCoordinates = textureCoordinates + 0.05 * vec2(0., pow(2.*abs(textureCoordinates.x - 0.5), 2));
+	vec2 distortedCoordinates = textureCoordinates - 0.05 * vec2(0., pow(2.*abs(textureCoordinates.x - 0.5), 2));
 	vec2 pixelCoordinates = (distortedCoordinates * screenDimensions - vec2(0, worldYOffset));
 	vec3 gradient = max(vec3(0), pow(1 - textureCoordinates.y, 3) * vec3(0.2,0.1,0.4) - pow(2. * abs(textureCoordinates.x - 0.5), 2) * vec3(0.1,0.1,0.15));
 

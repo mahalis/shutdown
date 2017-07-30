@@ -47,6 +47,10 @@ local foodColorSchemes =  { { { 0.94, 0.05, 0.65 }, { 0.85, 0.15, 0.35 }, { 0.4,
 local canvases = {}
 local thresholdShader, blurShaderX, blurShaderY, backgroundShader
 
+local BASE_PLAYER_SPIN = 0.6 -- radians per second
+local playerRotation, currentPlayerSpin
+local JUMP_SPIN = 11
+
 function love.load()
 	math.randomseed(os.time())
 	screenWidth, screenHeight = love.window.getMode()
@@ -61,8 +65,6 @@ function love.load()
 	
 	local quadVertices = {{-0.5, -0.5, 0, 0}, {0.5, -0.5, 1, 0}, {-0.5, 0.5, 0, 1}, {0.5, 0.5, 1, 1}}
 	quadMesh = love.graphics.newMesh(quadVertices, "strip", "static")
-
-	
 	
 	for i = 1, 3 do
 		local canvas = love.graphics.newCanvas(screenWidth * pixelScale, screenHeight * pixelScale)
@@ -78,6 +80,8 @@ function setup()
 	currentFallRate = BASE_FALL_RATE
 	playerPosition = v(0,0)
 	playerVelocity = v(0,0)
+	playerRotation = 0
+	currentPlayerSpin = (math.random() > 0.5 and 1 or -1) * 0.6 * 10
 	currentPowerLevel = MAX_POWER
 	nextFoodSpawnTime = elapsedTime
 	extraFoodSpawnTime = 0
@@ -98,6 +102,10 @@ function love.update(dt)
 		playerPosition.x = halfWidth - 1
 		playerVelocity.x = -math.abs(playerVelocity.x)
 	end
+
+	playerRotation = playerRotation + currentPlayerSpin * dt
+	local targetSpin = ((currentPlayerSpin > 0) and 1 or -1) * BASE_PLAYER_SPIN
+	currentPlayerSpin = targetSpin + (currentPlayerSpin - targetSpin) * (1 - 2 * dt)
 
 	for i = 1, #foods do
 		local food = foods[i]
@@ -170,7 +178,7 @@ function love.draw()
 			love.graphics.push()
 				love.graphics.translate(playerPosition.x, playerPosition.y)
 				love.graphics.scale(PLAYER_SIZE)
-				love.graphics.rotate(elapsedTime * 0.6)
+				love.graphics.rotate(playerRotation)
 
 				love.graphics.setShader(youShader)
 					youShader:send("iGlobalTime", elapsedTime)
@@ -251,6 +259,9 @@ function love.keypressed(key)
 		if currentPowerLevel > POWER_PER_JUMP then
 			playerVelocity = currentJumpVelocity()
 			currentPowerLevel = currentPowerLevel - POWER_PER_JUMP
+			currentPlayerSpin = JUMP_SPIN * ((math.random() > 0.5) and 1 or -1)
+		else
+			-- TODO: indicate you have no jump power	
 		end
 	elseif key == "f" then
 		makeFood() -- TODO: remember to remove this before release (i.e., don’t be an idiot)
