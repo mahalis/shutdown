@@ -47,7 +47,7 @@ local foodColorSchemes =  { { { 0.94, 0.05, 0.65 }, { 0.85, 0.15, 0.35 }, { 0.4,
 							{ { 0.6, 0.05, 0.93 }, { 0.4, 0.03, 0.95 }, { 0.1, 0.4, 0.9 } }, -- purple
 							{ { 0.05, 0.4, 0.95 }, { 0.3, 0.8, 0.6 }, { 0.05, 0.1, 0.9 } } } -- cyan
 local canvases = {}
-local thresholdShader, blurShaderX, blurShaderY, backgroundShader, barShader
+local thresholdShader, blurShaderX, blurShaderY, backgroundShader, barShader, scoreShader
 
 local BASE_PLAYER_SPIN = 0.6 -- radians per second
 local playerRotation, currentPlayerSpin
@@ -86,6 +86,7 @@ function love.load()
 	backgroundShader = love.graphics.newShader("grid.fsh")
 	backgroundShader:send("screenDimensions", {screenWidth, screenHeight})
 	barShader = love.graphics.newShader("bar.fsh")
+	scoreShader = love.graphics.newShader("score.fsh")
 	
 	local quadVertices = {{-0.5, -0.5, 0, 0}, {0.5, -0.5, 1, 0}, {-0.5, 0.5, 0, 1}, {0.5, 0.5, 1, 1}}
 	quadMesh = love.graphics.newMesh(quadVertices, "strip", "static")
@@ -353,7 +354,7 @@ function love.draw()
 		love.graphics.pop()
 
 		love.graphics.setColor(160, 230 + 25 * math.sin(elapsedTime * 1.53), 220 + 35 * math.sin(elapsedTime * 1.4 + 1), 255)
-		drawScoreTexts(isGameOver)
+		drawScoreTexts(isGameOver, false)
 
 
 	love.graphics.setBlendMode("alpha", "premultiplied")
@@ -460,18 +461,23 @@ end
 
 function drawScoreTexts(final, includeLabels)
 	local score = tostring(getScore())
+	love.graphics.setShader(scoreShader)
+	scoreShader:send("iGlobalTime", elapsedTime)
 	if not final then
 		local scoreRightEdge = screenWidth - UI_EDGE_INSET + 5
 		local scoreWidth = drawText(score, scoreFont, scoreRightEdge, UI_EDGE_INSET, true)
 		if includeLabels then
 			local scoreLabelWidth = scoreImage:getWidth() / pixelScale
-			local labelX = scoreRightEdge - 9 * string.len(score) - 26 - scoreLabelWidth -- this will jitter, so we round it below
+			local labelX = scoreRightEdge - 9 * string.len(score) - 26 - scoreLabelWidth
+			love.graphics.setShader()
 			love.graphics.draw(scoreImage, labelX, UI_EDGE_INSET + 20, 0, 1 / pixelScale)
 		end
 
 		if bestScore > 0 then
 			local bestScoreText = tostring(math.max(score, bestScore))
+			love.graphics.setShader(scoreShader)
 			local bestScoreWidth = drawText(bestScoreText, bestScoreFont, scoreRightEdge, UI_EDGE_INSET + 45, true)
+			love.graphics.setShader()
 			if includeLabels then
 				local bestScoreLabelWidth = bestScoreImage:getWidth() / pixelScale
 				local labelX = scoreRightEdge - 6 * string.len(bestScoreText) - 18 - bestScoreLabelWidth
@@ -480,7 +486,10 @@ function drawScoreTexts(final, includeLabels)
 		end
 	else
 		drawText(score, bigScoreFont, screenWidth / 2, screenHeight * 0.7)
+		love.graphics.setShader()
+		drawCenteredImage(scoreImage, screenWidth / 2 + 5, screenHeight * 0.7 - 20, 1 / pixelScale)
 	end
+	
 end
 
 function drawCanvas(canvas, scaleMultiplier)
@@ -508,8 +517,6 @@ function love.keypressed(key)
 		else
 			beginGame()
 		end
-	elseif key == "f" then
-		makeFood() -- TODO: remember to remove this before release (i.e., don’t be an idiot)
 	end
 end
 
