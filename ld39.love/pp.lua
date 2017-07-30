@@ -21,11 +21,9 @@ SOFTWARE.
 ]]--
 
 function makeBlurShader(sigma, texturePixelExtent, directionX, directionY)
-	local taps = math.min(11, math.max(3, math.floor(sigma / 1.5)))
+	local taps = math.min(23, math.max(3, math.floor((sigma) * 0.5) * 2 + 1))
 	local scaledSigma = sigma / texturePixelExtent
-	local valueStep = 2 * scaledSigma / taps
 
-	local one_by_sigma_sq = 1 / (scaledSigma * scaledSigma)
 	local norm = 0
 
 	local header = [[
@@ -37,13 +35,17 @@ function makeBlurShader(sigma, texturePixelExtent, directionX, directionY)
 	local blur_line = "c += Texel(texture, tc + direction * %f) * %f;"
 
 	for i = 0, taps - 1 do
-		local x = -scaledSigma + (i + 0.5) * valueStep
-		local coeff = math.exp(-.5 * x*x * one_by_sigma_sq)
+		local x = -1 + 2 * ((i + 0.5) / taps)
+		local coeff = math.exp(-4.5 * x * x)
 		norm = norm + coeff
-		code[#code+1] = blur_line:format(x, coeff)
+		code[#code+1] = blur_line:format(x * scaledSigma, coeff)
 	end
 
-	code[#code+1] = ("return c * %f * color;}"):format(1 / norm)
+	code[#code+1] = ([[const float colorPower = 1.2;
+						vec4 r = %f * c;
+						r.xyz = vec3(pow(r.x, colorPower), pow(r.y, colorPower), pow(r.z, colorPower)) * 1.4;
+						return color * r; }
+						]]):format(1 / norm)
 
 	local shaderText = table.concat(code)
 	--print(shaderText)
