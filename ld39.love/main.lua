@@ -120,7 +120,7 @@ function love.load()
 
 	backgroundMusic = love.audio.newSource("music.ogg")
 	backgroundMusic:setLooping(true)
-	--backgroundMusic:play()
+	backgroundMusic:play()
 
 	logoImage = loadImage("logo")
 	instructionImage = loadImage("instructions")
