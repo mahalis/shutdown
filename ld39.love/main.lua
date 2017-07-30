@@ -63,7 +63,7 @@ local lastFoodTime = -2 * FOOD_GLOW_FADE_DURATION
 local isPlaying, isGameOver
 
 local backgroundMusic
-local logoImage, instructionImage, completeImage
+local logoImage, instructionImage, completeImage, scoreImage, bestScoreImage
 local scoreFont, bestScoreFont, bigScoreFont
 
 local beganPlayingTime, gameOverTime, resetTime
@@ -127,6 +127,8 @@ function love.load()
 	logoImage = loadImage("logo")
 	instructionImage = loadImage("instructions")
 	completeImage = loadImage("complete")
+	scoreImage = loadImage("score")
+	bestScoreImage = loadImage("best")
 
 	local scoreFontName = "Air Americana.ttf"
 	scoreFont = love.graphics.newFont(scoreFontName, 40)
@@ -399,7 +401,7 @@ function love.draw()
 	if isGameOver then
 		love.graphics.setColor(255, 255, 255, 255)
 	end
-	drawScoreTexts(isGameOver)
+	drawScoreTexts(isGameOver, true)
 
 	local shouldDrawTitles = (not isPlaying) or (elapsedTime < beganPlayingTime + TITLE_MOVE_DURATION_OUT)
 	if shouldDrawTitles then
@@ -456,12 +458,25 @@ function updateWorldOffset(dt)
 	currentWorldOffset = math.max(-playerPosition.y + screenHeight * 0.4, currentWorldOffset + currentFallRate * dt)
 end
 
-function drawScoreTexts(final)
+function drawScoreTexts(final, includeLabels)
 	local score = tostring(getScore())
 	if not final then
-		drawText(score, scoreFont, screenWidth - UI_EDGE_INSET + 5, UI_EDGE_INSET, true)
+		local scoreRightEdge = screenWidth - UI_EDGE_INSET + 5
+		local scoreWidth = drawText(score, scoreFont, scoreRightEdge, UI_EDGE_INSET, true)
+		if includeLabels then
+			local scoreLabelWidth = scoreImage:getWidth() / pixelScale
+			local labelX = scoreRightEdge - 9 * string.len(score) - 26 - scoreLabelWidth -- this will jitter, so we round it below
+			love.graphics.draw(scoreImage, labelX, UI_EDGE_INSET + 20, 0, 1 / pixelScale)
+		end
+
 		if bestScore > 0 then
-			drawText(tostring(math.max(score, bestScore)), bestScoreFont, screenWidth - UI_EDGE_INSET, UI_EDGE_INSET + 45, true)
+			local bestScoreText = tostring(math.max(score, bestScore))
+			local bestScoreWidth = drawText(bestScoreText, bestScoreFont, scoreRightEdge, UI_EDGE_INSET + 45, true)
+			if includeLabels then
+				local bestScoreLabelWidth = bestScoreImage:getWidth() / pixelScale
+				local labelX = scoreRightEdge - 6 * string.len(bestScoreText) - 18 - bestScoreLabelWidth
+				love.graphics.draw(bestScoreImage, labelX, UI_EDGE_INSET + 48, 0, 1 / pixelScale)
+			end
 		end
 	else
 		drawText(score, bigScoreFont, screenWidth / 2, screenHeight * 0.7)
@@ -563,6 +578,7 @@ function drawText(text, font, x, y, rightAlign) -- if not right-aligned, centere
 	local textWidth = font:getWidth(text)
 	local textXOrigin = rightAlign and textWidth or textWidth / 2
 	love.graphics.print(text, x, y, 0, 1, 1, textXOrigin)
+	return textWidth
 end
 
 function guessedBeatValue(phase)
