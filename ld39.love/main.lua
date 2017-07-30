@@ -66,6 +66,9 @@ local backgroundMusic
 local logoImage, instructionImage, completeImage
 local scoreFont, bestScoreFont, bigScoreFont
 
+local beganPlayingTime, gameOverTime
+
+local SCORE_PER_SECOND = 6
 function love.load()
 	math.randomseed(os.time())
 	screenWidth, screenHeight = love.window.getMode()
@@ -136,6 +139,9 @@ end
 function setup()
 	isPlaying = false
 	isGameOver = false
+
+	beganPlayingTime = -2 * BEGIN_TITLE_MOVE_DURATION --don’t want any animations going off unexpectedly
+	gameOverTime = -2 * END_TITLE_MOVE_DURATION -- ditto
 
 	playerPosition = v(0,0)
 	playerVelocity = v(0,0)
@@ -232,6 +238,7 @@ function love.update(dt)
 			currentPowerLevel = 0
 			isPlaying = false
 			isGameOver = true
+			gameOverTime = elapsedTime
 		end
 		extraFoodSpawnTime = extraFoodSpawnTime + FOOD_SPAWN_INTERVAL_GROWTH * dt
 	end
@@ -417,11 +424,12 @@ function updateWorldOffset(dt)
 end
 
 function drawScoreTexts(final)
+	local score = tostring(getScore())
 	if not final then
-		drawText("125", scoreFont, screenWidth - UI_EDGE_INSET + 5, UI_EDGE_INSET, true)
+		drawText(score, scoreFont, screenWidth - UI_EDGE_INSET + 5, UI_EDGE_INSET, true)
 		drawText("1241", bestScoreFont, screenWidth - UI_EDGE_INSET, UI_EDGE_INSET + 45, true)
 	else
-		drawText("127", bigScoreFont, screenWidth / 2, screenHeight * 0.7)
+		drawText(score, bigScoreFont, screenWidth / 2, screenHeight * 0.7)
 	end
 end
 
@@ -447,6 +455,7 @@ function love.keypressed(key)
 			setup()
 		else
 			isPlaying = true
+			beganPlayingTime = elapsedTime
 			doJump(true)
 		end
 	elseif key == "f" then
@@ -483,6 +492,18 @@ function handleGotFood(foodIndex)
 end
 
 -- Utility stuff
+
+function getScore()
+	local time
+	if isGameOver then
+		time = gameOverTime - beganPlayingTime
+	elseif not isPlaying then
+		time = 0
+	else
+		time = elapsedTime - beganPlayingTime
+	end
+	return math.floor(time * SCORE_PER_SECOND)
+end
 
 function drawText(text, font, x, y, rightAlign) -- if not right-aligned, centered
 	love.graphics.setFont(font)
