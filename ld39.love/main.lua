@@ -487,7 +487,7 @@ function drawScoreTexts(final, includeLabels)
 	else
 		drawText(score, bigScoreFont, screenWidth / 2, screenHeight * 0.7)
 		love.graphics.setShader()
-		drawCenteredImage(scoreImage, screenWidth / 2 + 5, screenHeight * 0.7 - 20, 1 / pixelScale)
+		drawCenteredImage(scoreImage, screenWidth / 2 + 3, screenHeight * 0.7 - 23, 1 / pixelScale)
 	end
 	
 end

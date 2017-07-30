@@ -41,6 +41,7 @@ float layerValue(vec2 uv, float time) {
 vec4 effect(vec4 baseColor, Image texture, vec2 textureCoordinates, vec2 screenCoordinates) {
 	vec2 uv = textureCoordinates;
     uv.y = abs(uv.y - 0.5);
+    uv *= 2.;
     
     vec3 c1 = vec3(0.05, 0.94, 0.58);
     vec3 c2 = vec3(0.03, 0.47, 0.93);
