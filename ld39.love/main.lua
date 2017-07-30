@@ -69,6 +69,9 @@ local scoreFont, bestScoreFont, bigScoreFont
 local beganPlayingTime, gameOverTime
 
 local SCORE_PER_SECOND = 6
+local BEGIN_TITLE_MOVE_DURATION = 0.5
+local END_TITLE_MOVE_DURATION = 1
+
 function love.load()
 	math.randomseed(os.time())
 	screenWidth, screenHeight = love.window.getMode()
@@ -391,20 +394,33 @@ function love.draw()
 	end
 	drawScoreTexts(isGameOver)
 
-	if not isPlaying then
+	local shouldDrawTitles = (not isPlaying) or (elapsedTime < beganPlayingTime + BEGIN_TITLE_MOVE_DURATION)
+	if shouldDrawTitles then
+		local titleMovementCurvePower = isGameOver and 9 or 3
+
 		local mainLogoY = screenHeight * 0.3
+		local mainLogoXOffsetAmount = 0
+		if elapsedTime < beganPlayingTime + BEGIN_TITLE_MOVE_DURATION then
+			mainLogoXOffsetAmount = math.pow((elapsedTime - beganPlayingTime) / BEGIN_TITLE_MOVE_DURATION, titleMovementCurvePower)
+		elseif elapsedTime < gameOverTime + END_TITLE_MOVE_DURATION then
+			mainLogoXOffsetAmount = -(math.pow(1 - ((elapsedTime - gameOverTime) / END_TITLE_MOVE_DURATION), titleMovementCurvePower))
+		end
 
 		local instanceCount = isGameOver and 0 or 3
 		for i = instanceCount, 0, -1 do
 			love.graphics.setColor(255, 255, 255, 255 * (1 - 0.3 * i))
-			drawCenteredImage(logoImage, screenWidth / 2, mainLogoY + i * 20, (1 - 0.15 * i) / pixelScale)
+			drawCenteredImage(logoImage, screenWidth * (0.5 + mainLogoXOffsetAmount * (1 - 0.1 * i)), mainLogoY + i * 20, (1 - 0.15 * i) / pixelScale)
 		end
 
 		local completeY = screenHeight * 0.45
+		local completeXOffsetAmount = 0
+		if elapsedTime < gameOverTime + END_TITLE_MOVE_DURATION then
+			completeXOffsetAmount = math.pow(1 - (elapsedTime - gameOverTime) / END_TITLE_MOVE_DURATION, titleMovementCurvePower)
+		end
 		if isGameOver then
 			-- second part of logo text (“complete”)
-			drawCenteredImage(completeImage, screenWidth / 2, completeY, 1 / pixelScale)
-		else
+			drawCenteredImage(completeImage, screenWidth * (0.5 + completeXOffsetAmount), completeY, 1 / pixelScale)
+		elseif not isPlaying then
 			-- instructions
 			drawCenteredImage(instructionImage, screenWidth / 2, screenHeight * 0.6, 1 / pixelScale)
 		end
@@ -412,9 +428,9 @@ function love.draw()
 		-- extra main-logo pass
 		love.graphics.setBlendMode("add")
 		love.graphics.setColor(255 * beatValue, 255 * beatValue, 255 * beatValue, 255)
-		drawCenteredImage(logoImage, screenWidth / 2, mainLogoY, 1 / pixelScale)
+		drawCenteredImage(logoImage, screenWidth * (0.5 + mainLogoXOffsetAmount), mainLogoY, 1 / pixelScale)
 		if isGameOver then
-			drawCenteredImage(completeImage, screenWidth / 2, completeY, 1 / pixelScale)
+			drawCenteredImage(completeImage, screenWidth * (0.5 + completeXOffsetAmount), completeY, 1 / pixelScale)
 		end
 	end
 end
