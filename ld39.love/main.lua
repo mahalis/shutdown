@@ -72,6 +72,8 @@ local SCORE_PER_SECOND = 6
 local TITLE_MOVE_DURATION_OUT = 0.5
 local TITLE_MOVE_DURATION_IN = 1
 
+local bestScore
+
 function love.load()
 	math.randomseed(os.time())
 	screenWidth, screenHeight = love.window.getMode()
@@ -133,6 +135,7 @@ function love.load()
 
 	elapsedTime = 0
 	resetTime = -5
+	bestScore = 0
 
 	setup()
 end
@@ -241,9 +244,7 @@ function love.update(dt)
 		currentPowerLevel = currentPowerLevel - POWER_DECAY * dt
 		if currentPowerLevel < 0 then
 			currentPowerLevel = 0
-			isPlaying = false
-			isGameOver = true
-			gameOverTime = elapsedTime
+			endGame()
 		end
 		extraFoodSpawnTime = extraFoodSpawnTime + FOOD_SPAWN_INTERVAL_GROWTH * dt
 	end
@@ -459,7 +460,9 @@ function drawScoreTexts(final)
 	local score = tostring(getScore())
 	if not final then
 		drawText(score, scoreFont, screenWidth - UI_EDGE_INSET + 5, UI_EDGE_INSET, true)
-		drawText("1241", bestScoreFont, screenWidth - UI_EDGE_INSET, UI_EDGE_INSET + 45, true)
+		if bestScore > 0 then
+			drawText(tostring(math.max(score, bestScore)), bestScoreFont, screenWidth - UI_EDGE_INSET, UI_EDGE_INSET + 45, true)
+		end
 	else
 		drawText(score, bigScoreFont, screenWidth / 2, screenHeight * 0.7)
 	end
@@ -488,18 +491,29 @@ function love.keypressed(key)
 				resetTime = elapsedTime
 			end
 		else
-			begin()
+			beginGame()
 		end
 	elseif key == "f" then
 		makeFood() -- TODO: remember to remove this before release (i.e., don’t be an idiot)
 	end
 end
 
-function begin()
+function beginGame()
 	isPlaying = true
 	beganPlayingTime = elapsedTime
 	doJump(true)
 	resetTime = -5
+end
+
+function endGame()
+	isPlaying = false
+	isGameOver = true
+	gameOverTime = elapsedTime
+
+	local score = getScore()
+	if score > bestScore then
+		bestScore = score
+	end
 end
 
 function doJump(first)
