@@ -29,6 +29,7 @@ local BASE_FOOD_SPAWN_INTERVAL = 0.8
 local FOOD_SPAWN_VARIATION = 0.2
 local FOOD_SPAWN_INTERVAL_GROWTH = 0
 
+local UI_EDGE_INSET = 15
 local POWER_BAR_WIDTH = 200
 local POWER_BAR_HEIGHT = 20
 
@@ -62,7 +63,8 @@ local lastFoodTime = -2 * FOOD_GLOW_FADE_DURATION
 local isPlaying, isGameOver
 
 local backgroundMusic
-local logoImage
+local logoImage, instructionImage, completeImage
+local scoreFont, bestScoreFont, bigScoreFont
 
 function love.load()
 	math.randomseed(os.time())
@@ -112,9 +114,16 @@ function love.load()
 
 	backgroundMusic = love.audio.newSource("music.ogg")
 	backgroundMusic:setLooping(true)
-	backgroundMusic:play()
+	--backgroundMusic:play()
 
 	logoImage = loadImage("logo")
+	instructionImage = loadImage("instructions")
+	completeImage = loadImage("complete")
+
+	local scoreFontName = "Air Americana.ttf"
+	scoreFont = love.graphics.newFont(scoreFontName, 40)
+	bestScoreFont = love.graphics.newFont(scoreFontName, 20)
+	bigScoreFont = love.graphics.newFont(scoreFontName, 80)
 
 	elapsedTime = 0
 	setup()
@@ -315,7 +324,7 @@ function love.draw()
 
 		-- bar
 		love.graphics.push()
-			love.graphics.translate(10 + POWER_BAR_WIDTH / 2, 10 + POWER_BAR_HEIGHT / 2)
+			love.graphics.translate(UI_EDGE_INSET + POWER_BAR_WIDTH / 2, UI_EDGE_INSET + POWER_BAR_HEIGHT / 2)
 			love.graphics.scale(POWER_BAR_WIDTH, POWER_BAR_HEIGHT)
 			love.graphics.setShader(barShader)
 			barShader:send("iGlobalTime", elapsedTime)
@@ -323,6 +332,9 @@ function love.draw()
 			love.graphics.draw(quadMesh)
 			love.graphics.setShader()
 		love.graphics.pop()
+
+		love.graphics.setColor(160, 230 + 25 * math.sin(elapsedTime * 1.53), 220 + 35 * math.sin(elapsedTime * 1.4 + 1), 255)
+		drawScoreTexts(isGameOver)
 
 
 	love.graphics.setBlendMode("alpha", "premultiplied")
@@ -342,9 +354,17 @@ function love.draw()
 
 	love.graphics.setBlendMode("add")
 	drawCanvas(canvases[2], 2)
+	local extraGlowValue = 0
 	if elapsedTime < lastFoodTime + FOOD_GLOW_FADE_DURATION then
-		local mul = 1 - feedProgress
-		love.graphics.setColor(255 * mul, 255 * mul, 255 * mul, 255 * mul)
+		extraGlowValue = 1 - feedProgress
+	end
+
+	if isGameOver then
+		extraGlowValue = beatValue * 0.5
+	end
+
+	if extraGlowValue > 0 then
+		love.graphics.setColor(255 * extraGlowValue, 255 * extraGlowValue, 255 * extraGlowValue, 255 * extraGlowValue)
 		drawCanvas(canvases[2], 2)
 	end
 
@@ -358,21 +378,51 @@ function love.draw()
 
 	love.graphics.setColor(255, 255, 255, 255 * mainMultiplier)
 	love.graphics.setLineWidth(2)
-	love.graphics.rectangle("line", 10, 10, POWER_BAR_WIDTH, POWER_BAR_HEIGHT)
+	love.graphics.rectangle("line", UI_EDGE_INSET, UI_EDGE_INSET, POWER_BAR_WIDTH, POWER_BAR_HEIGHT)
+	if isGameOver then
+		love.graphics.setColor(255, 255, 255, 255)
+	end
+	drawScoreTexts(isGameOver)
 
-	if not isPlaying and not isGameOver then
-		for i = 3, 0, -1 do
+	if not isPlaying then
+		local mainLogoY = screenHeight * 0.3
+
+		local instanceCount = isGameOver and 0 or 3
+		for i = instanceCount, 0, -1 do
 			love.graphics.setColor(255, 255, 255, 255 * (1 - 0.3 * i))
-			drawCenteredImage(logoImage, screenWidth / 2, screenHeight * 0.3 + i * 20, (1 - 0.15 * i) / pixelScale)
+			drawCenteredImage(logoImage, screenWidth / 2, mainLogoY + i * 20, (1 - 0.15 * i) / pixelScale)
 		end
+
+		local completeY = screenHeight * 0.45
+		if isGameOver then
+			-- second part of logo text (“complete”)
+			drawCenteredImage(completeImage, screenWidth / 2, completeY, 1 / pixelScale)
+		else
+			-- instructions
+			drawCenteredImage(instructionImage, screenWidth / 2, screenHeight * 0.6, 1 / pixelScale)
+		end
+
+		-- extra main-logo pass
 		love.graphics.setBlendMode("add")
 		love.graphics.setColor(255 * beatValue, 255 * beatValue, 255 * beatValue, 255)
-		drawCenteredImage(logoImage, screenWidth / 2, screenHeight * 0.3, 1 / pixelScale)
+		drawCenteredImage(logoImage, screenWidth / 2, mainLogoY, 1 / pixelScale)
+		if isGameOver then
+			drawCenteredImage(completeImage, screenWidth / 2, completeY, 1 / pixelScale)
+		end
 	end
 end
 
 function updateWorldOffset(dt)
 	currentWorldOffset = math.max(-playerPosition.y + screenHeight * 0.4, currentWorldOffset + currentFallRate * dt)
+end
+
+function drawScoreTexts(final)
+	if not final then
+		drawText("125", scoreFont, screenWidth - UI_EDGE_INSET + 5, UI_EDGE_INSET, true)
+		drawText("1241", bestScoreFont, screenWidth - UI_EDGE_INSET, UI_EDGE_INSET + 45, true)
+	else
+		drawText("127", bigScoreFont, screenWidth / 2, screenHeight * 0.7)
+	end
 end
 
 function drawCanvas(canvas, scaleMultiplier)
@@ -433,6 +483,13 @@ function handleGotFood(foodIndex)
 end
 
 -- Utility stuff
+
+function drawText(text, font, x, y, rightAlign) -- if not right-aligned, centered
+	love.graphics.setFont(font)
+	local textWidth = font:getWidth(text)
+	local textXOrigin = rightAlign and textWidth or textWidth / 2
+	love.graphics.print(text, x, y, 0, 1, 1, textXOrigin)
+end
 
 function guessedBeatValue(phase)
 	local secondsPerBeat = 60 / 100 -- 100 bpm
