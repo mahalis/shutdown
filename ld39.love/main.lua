@@ -19,8 +19,8 @@ local SIDE_FOOD_BASE_X_SPEED = 60
 local FOOD_X_SPEED_VARIATION = 0.3
 local TOP_FOOD_X_SPEED_MAX = 40
 
-local STARTING_POWER = 10
-local MAX_POWER = 20
+local MAX_POWER = 21
+local STARTING_POWER = MAX_POWER
 local POWER_PER_JUMP = 3
 local POWER_PER_FOOD = 5
 local POWER_DECAY = 1.2
@@ -58,6 +58,8 @@ local particleImages = {} -- indices 1…4 have polygons with 4…7 sides
 local EXPLOSION_PARTICLES_PER_COLOR = 6
 local FOOD_GLOW_FADE_DURATION = 2
 local lastFoodTime = -2 * FOOD_GLOW_FADE_DURATION
+
+local isPlaying, isGameOver
 
 function love.load()
 	math.randomseed(os.time())
@@ -110,13 +112,19 @@ function love.load()
 end
 
 function setup()
-	currentWorldOffset = 0
-	currentFallRate = BASE_FALL_RATE
+	isPlaying = false
+	isGameOver = false
+
 	playerPosition = v(0,0)
 	playerVelocity = v(0,0)
+
+	currentWorldOffset = 0
+	currentFallRate = BASE_FALL_RATE
+	updateWorldOffset(0)
+
 	playerRotation = 0
-	currentPlayerSpin = (math.random() > 0.5 and 1 or -1) * 0.6 * 10
-	currentPowerLevel = MAX_POWER
+	currentPlayerSpin = (math.random() > 0.5 and 1 or -1) * BASE_PLAYER_SPIN
+	currentPowerLevel = STARTING_POWER
 	nextFoodSpawnTime = elapsedTime
 	extraFoodSpawnTime = 0
 
@@ -146,7 +154,9 @@ function love.update(dt)
 
 	for i = 1, #foods do
 		local food = foods[i]
-		foods[i].position = vAdd(food.position, vMul(food.velocity, dt))
+		if isPlaying or isGameOver then
+			foods[i].position = vAdd(food.position, vMul(food.velocity, dt))
+		end
 
 		-- for both of the below, it’s possible for us to miss events if they happen in the same frame
 		-- they’ll get caught in the next one, though, so that doesn’t matter
@@ -188,14 +198,23 @@ function love.update(dt)
 
 	playerVelocity = vMul(playerVelocity, 1 - PLAYER_DRAG * dt)
 
-	currentWorldOffset = math.max(-playerPosition.y + screenHeight * 0.3, currentWorldOffset + currentFallRate * dt)
-	
-	currentFallRate = currentFallRate + FALL_RATE_ACCELERATION * dt
+	if isPlaying or isGameOver then
+		updateWorldOffset(dt)
 
-	currentPowerLevel = currentPowerLevel - POWER_DECAY * dt
-	extraFoodSpawnTime = extraFoodSpawnTime + FOOD_SPAWN_INTERVAL_GROWTH * dt
+		currentFallRate = currentFallRate + FALL_RATE_ACCELERATION * dt
+	end
 
-	if elapsedTime > nextFoodSpawnTime then
+	if isPlaying then
+		currentPowerLevel = currentPowerLevel - POWER_DECAY * dt
+		if currentPowerLevel < 0 then
+			currentPowerLevel = 0
+			isPlaying = false
+			isGameOver = true
+		end
+		extraFoodSpawnTime = extraFoodSpawnTime + FOOD_SPAWN_INTERVAL_GROWTH * dt
+	end
+
+	if isPlaying and elapsedTime > nextFoodSpawnTime and currentPowerLevel > POWER_PER_JUMP then
 		local delay = BASE_FOOD_SPAWN_INTERVAL + extraFoodSpawnTime
 		nextFoodSpawnTime = elapsedTime + delay * (1 + frand() * FOOD_SPAWN_VARIATION)
 		makeFood()
@@ -316,16 +335,21 @@ function love.draw()
 		drawCanvas(canvases[2], 2)
 	end
 
-	love.graphics.setColor(255, 255, 255, 255)
+	local mainMultiplier = math.min(1, math.pow(math.max(0, currentPowerLevel) / (2 * POWER_PER_JUMP), 2))
+	love.graphics.setColor(255 * mainMultiplier, 255 * mainMultiplier, 255 * mainMultiplier, 255)
 	drawCanvas(canvases[1]) -- original unblurred one
 
 	love.graphics.setBlendMode("alpha")
 
 	-- UI
 
-	love.graphics.setColor(255, 255, 255, 255)
+	love.graphics.setColor(255, 255, 255, 255 * mainMultiplier)
 	love.graphics.setLineWidth(2)
 	love.graphics.rectangle("line", 10, 10, POWER_BAR_WIDTH, POWER_BAR_HEIGHT)
+end
+
+function updateWorldOffset(dt)
+	currentWorldOffset = math.max(-playerPosition.y + screenHeight * 0.3, currentWorldOffset + currentFallRate * dt)
 end
 
 function drawCanvas(canvas, scaleMultiplier)
@@ -345,12 +369,18 @@ function love.keypressed(key)
 	if key == "escape" then
 		love.event.quit()
 	elseif key == "space" then
-		if currentPowerLevel > POWER_PER_JUMP then
-			playerVelocity = currentJumpVelocity()
-			currentPowerLevel = currentPowerLevel - POWER_PER_JUMP
-			currentPlayerSpin = JUMP_SPIN * ((playerVelocity.x > 0) and 1 or -1)
+		if isPlaying then
+			if currentPowerLevel > POWER_PER_JUMP then
+				playerVelocity = currentJumpVelocity()
+				currentPowerLevel = currentPowerLevel - POWER_PER_JUMP
+				currentPlayerSpin = JUMP_SPIN * ((playerVelocity.x > 0) and 1 or -1)
+			else
+				-- TODO: indicate you have no jump power	
+			end
+		elseif isGameOver then
+			setup()
 		else
-			-- TODO: indicate you have no jump power	
+			isPlaying = true
 		end
 	elseif key == "f" then
 		makeFood() -- TODO: remember to remove this before release (i.e., don’t be an idiot)
@@ -364,11 +394,13 @@ end
 
 
 function handleGotFood(foodIndex)
-	local food = foods[foodIndex]
-	table.remove(foods, foodIndex)
-	currentPowerLevel = math.min(MAX_POWER, currentPowerLevel + POWER_PER_FOOD)
-	lastFoodTime = elapsedTime
-	makeFoodExplosion(food)
+	if isPlaying then
+		local food = foods[foodIndex]
+		table.remove(foods, foodIndex)
+		currentPowerLevel = math.min(MAX_POWER, currentPowerLevel + POWER_PER_FOOD)
+		lastFoodTime = elapsedTime
+		makeFoodExplosion(food)
+	end
 end
 
 -- Utility stuff
