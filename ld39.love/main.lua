@@ -70,7 +70,7 @@ local beganPlayingTime, gameOverTime, resetTime
 
 local SCORE_PER_SECOND = 6
 local TITLE_MOVE_DURATION_OUT = 0.5
-local TITLE_MOVE_DURATION_IN = 1
+local TITLE_MOVE_DURATION_IN = 2
 
 local bestScore
 

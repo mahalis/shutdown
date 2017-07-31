@@ -18,7 +18,7 @@ float layerValue(vec2 uv, float time, float fill) {
     float yDistance = smoothstep(-0.02, 0., abs(uv.y) - 0.1);
     //float xDistanceLeft = smoothstep(-0.02, 0., abs(u));
     //float xDistanceRight = smoothstep(0.04, 0., fill - uv.x);
-    float xDistance = smoothstep(-0.02, 0., abs(uv.x - 0.5) - 0.5);
+    float xDistance = smoothstep(-0.01, 0., abs(uv.x - 0.5) - 0.5);
     return max(max(stripe1, stripe2) * smoothstep(0., 0.01, fill - uv.x), max(xDistance, yDistance));
 }
 
